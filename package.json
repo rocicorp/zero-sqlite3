@@ -1,6 +1,6 @@
 {
   "name": "better-sqlite3-bedrock",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "The fastest and simplest library for SQLite3 in Node.js.",
   "homepage": "https://github.com/tantaman/better-sqlite3-bedrock",
   "author": "Matt Wonlaw",
