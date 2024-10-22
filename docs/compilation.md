@@ -43,7 +43,11 @@ If you're using a SQLite encryption extension that is a drop-in replacement for 
 
 # Bundled configuration
 
-By default, this distribution currently uses SQLite **version 3.50.4** with the following [compilation options](https://www.sqlite.org/compile.html):
+<<<<<<< HEAD
+By default, this distribution currently uses SQLite **version ..** with the following [compilation options](https://www.sqlite.org/compile.html):
+=======
+By default, this distribution currently uses SQLite3 **version ..** with the following [compilation options](https://www.sqlite.org/compile.html):
+>>>>>>> 2279c68 (pull bedrock branch)
 
 ```
 HAVE_INT16_T=1
