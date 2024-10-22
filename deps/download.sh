@@ -18,8 +18,7 @@
 # 4. node-gyp links the two resulting binaries to generate better_sqlite3.node.
 # ===
 
-YEAR="2024"
-VERSION="3470000"
+CHECKIN="d2d954d4"
 
 # Defines below are sorted alphabetically
 DEFINES="
@@ -73,11 +72,11 @@ mkdir -p "$OUTPUT"
 export CFLAGS=`echo $(echo "$DEFINES" | sed -e "/^\s*$/d" -e "s/^/-D/")`
 
 echo "downloading source..."
-curl -#f "https://www.sqlite.org/$YEAR/sqlite-src-$VERSION.zip" > "$TEMP/source.zip" || exit 1
+curl -#f "https://sqlite.org/src/zip/$CHECKIN/SQLite-$CHECKIN.zip" > "$TEMP/source.zip" || exit 1
 
 echo "extracting source..."
 unzip "$TEMP/source.zip" -d "$TEMP" > /dev/null || exit 1
-cd "$TEMP/sqlite-src-$VERSION" || exit 1
+cd "$TEMP/SQLite-$CHECKIN" || exit 1
 
 echo "configuring amalgamation..."
 sh configure > /dev/null || exit 1
