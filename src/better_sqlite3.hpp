@@ -264,8 +264,6 @@ private:
   static void JS_aggregate (v8::FunctionCallbackInfo <v8 :: Value> const & info);
 #line 350 "./src/objects/database.lzz"
   static void JS_table (v8::FunctionCallbackInfo <v8 :: Value> const & info);
-#line 370 "./src/objects/database.lzz"
-  static void JS_loadExtension (v8::FunctionCallbackInfo <v8 :: Value> const & info);
 #line 392 "./src/objects/database.lzz"
   static void JS_close (v8::FunctionCallbackInfo <v8 :: Value> const & info);
 #line 402 "./src/objects/database.lzz"
