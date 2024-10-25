@@ -44,15 +44,17 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
       - if: ${{ startsWith(matrix.os, 'windows') }}
-        run: pip.exe install setuptools
+        run: |
+          pip.exe install setuptools
+          vcpkg install icu:x64-windows
       - if: ${{ startsWith(matrix.os, 'macos') }}
-        run: brew install python-setuptools
+        run: brew install python-setuptools icu4c
       - if: ${{ !startsWith(matrix.os, 'windows') && !startsWith(matrix.os, 'macos') }}
         run: python3 -m pip install setuptools
       - if: ${{ startsWith(matrix.os, 'ubuntu') }}
         run: |
           sudo apt update
-          sudo apt install gcc-10 g++-10 -y
+          sudo apt install gcc-10 g++-10 libicu-dev -y
           sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-10 100 --slave /usr/bin/g++ g++ /usr/bin/g++-10 --slave /usr/bin/gcov gcov /usr/bin/gcov-10
       - run: npm install --ignore-scripts
       - run: npm run build-debug
