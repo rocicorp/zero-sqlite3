@@ -5,6 +5,7 @@ const fs = require('fs');
 const dest = process.argv[2];
 const source = path.resolve(path.sep, process.argv[3] || path.join(__dirname, 'sqlite3'));
 const files = [
+  { filename: 'shell.c', optional: false },
 	{ filename: 'sqlite3.c', optional: false },
 	{ filename: 'sqlite3.h', optional: false },
 ];

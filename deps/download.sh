@@ -57,6 +57,7 @@ SQLITE_SOUNDEX
 SQLITE_THREADSAFE=2
 SQLITE_TRACE_SIZE_LIMIT=32
 SQLITE_USE_URI=0
+SQLITE_OMIT_LOAD_EXTENSION
 "
 
 # ========== START SCRIPT ========== #
@@ -85,7 +86,7 @@ echo "building amalgamation..."
 make sqlite3.c > /dev/null || exit 1
 
 echo "copying amalgamation..."
-cp sqlite3.c sqlite3.h sqlite3ext.h "$OUTPUT/" || exit 1
+cp sqlite3.c sqlite3.h sqlite3ext.h shell.c "$OUTPUT/" || exit 1
 
 echo "applying patches..."
 cd "$DEPS" || exit 1

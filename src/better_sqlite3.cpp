@@ -342,7 +342,6 @@ v8::Local <v8 :: Function> Database::Init (v8::Isolate * isolate, v8::Local <v8 
                 SetPrototypeMethod(isolate, data, t, "function", JS_function);
                 SetPrototypeMethod(isolate, data, t, "aggregate", JS_aggregate);
                 SetPrototypeMethod(isolate, data, t, "table", JS_table);
-                SetPrototypeMethod(isolate, data, t, "loadExtension", JS_loadExtension);
                 SetPrototypeMethod(isolate, data, t, "close", JS_close);
                 SetPrototypeMethod(isolate, data, t, "defaultSafeIntegers", JS_defaultSafeIntegers);
                 SetPrototypeMethod(isolate, data, t, "unsafeMode", JS_unsafeMode);
@@ -679,30 +678,6 @@ void Database::JS_table (v8::FunctionCallbackInfo <v8 :: Value> const & info)
                         db->ThrowDatabaseError();
                 }
                 db->busy = false;
-}
-#line 370 "./src/objects/database.lzz"
-void Database::JS_loadExtension (v8::FunctionCallbackInfo <v8 :: Value> const & info)
-#line 370 "./src/objects/database.lzz"
-                                      {
-                Database* db = node :: ObjectWrap :: Unwrap <Database>(info.This());
-                v8::Local<v8::String> entryPoint;
-                if ( info . Length ( ) <= ( 0 ) || ! info [ 0 ] -> IsString ( ) ) return ThrowTypeError ( "Expected " "first" " argument to be " "a string" ) ; v8 :: Local < v8 :: String > filename = ( info [ 0 ] . As < v8 :: String > ( ) ) ;
-                if (info.Length() > 1) { if ( info . Length ( ) <= ( 1 ) || ! info [ 1 ] -> IsString ( ) ) return ThrowTypeError ( "Expected " "second" " argument to be " "a string" ) ; entryPoint = ( info [ 1 ] . As < v8 :: String > ( ) ) ; }
-                if ( ! db -> open ) return ThrowTypeError ( "The database connection is not open" ) ;
-                if ( db -> busy ) return ThrowTypeError ( "This database connection is busy executing a query" ) ;
-                if ( db -> iterators ) return ThrowTypeError ( "This database connection is busy executing a query" ) ;
-                v8 :: Isolate * isolate = info . GetIsolate ( ) ;
-                char* error;
-                int status = sqlite3_load_extension(
-                        db->db_handle,
-                        *v8::String::Utf8Value(isolate, filename),
-                        entryPoint.IsEmpty() ? NULL : *v8::String::Utf8Value(isolate, entryPoint),
-                        &error
-                );
-                if (status != SQLITE_OK) {
-                        ThrowSqliteError(db->addon, error, status);
-                }
-                sqlite3_free(error);
 }
 #line 392 "./src/objects/database.lzz"
 void Database::JS_close (v8::FunctionCallbackInfo <v8 :: Value> const & info)
