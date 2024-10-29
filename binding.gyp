@@ -30,7 +30,7 @@
       ],
     },
     {
-      'target_name': 'shell',
+      'target_name': 'zero_sqlite3',
       'type': 'executable',
       'dependencies': ['deps/sqlite3.gyp:locate_sqlite3'],
       'sources': ['<(SHARED_INTERMEDIATE_DIR)/sqlite3/sqlite3.c', '<(SHARED_INTERMEDIATE_DIR)/sqlite3/shell.c'],

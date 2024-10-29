@@ -15,9 +15,9 @@ on:
 env:
   # See https://github.com/nodejs/release#release-schedule
   # Node.js v16 EOL = 2023-09-11. v21 EOL = 2024-06-01.
-  NODE_BUILD_CMD: npx --no-install prebuild -r node -t 18.0.0 -t 20.0.0 -t 22.0.0 -t 23.0.0 --include-regex 'better_sqlite3.node$'
+  NODE_BUILD_CMD: npx --no-install prebuild -r node -t 18.0.0 -t 20.0.0 -t 22.0.0 -t 23.0.0 --include-regex '_sqlite3'
   # Merge with NODE_BUILD_CMD when Node.js v18 is EOL
-  NO_V18_NODE_BUILD_CMD: npx --no-install prebuild -r node -t 20.0.0 -t 22.0.0 -t 23.0.0 --include-regex 'better_sqlite3.node$'
+  NO_V18_NODE_BUILD_CMD: npx --no-install prebuild -r node -t 20.0.0 -t 22.0.0 -t 23.0.0 --include-regex '_sqlite3'
   # See https://www.electronjs.org/docs/latest/tutorial/electron-timelines#version-support-policy
   # Electron v25 EOL = 2023-12-05. v26 EOL = 2024-02-20. v27 EOL = 2024-04-16. v28 EOL = 2024-06-11. v29 EOL = 2024-08-20.
 
