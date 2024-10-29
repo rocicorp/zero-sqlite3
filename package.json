@@ -1,12 +1,12 @@
 {
-  "name": "better-sqlite3-bedrock",
-  "version": "1.0.4",
-  "description": "The fastest and simplest library for SQLite3 in Node.js.",
-  "homepage": "https://github.com/tantaman/better-sqlite3-bedrock",
-  "author": "Matt Wonlaw",
+  "name": "@rocicorp/zero-sqlite3",
+  "version": "1.0.0",
+  "description": "better-sqlite3 on bedrock",
+  "homepage": "https://github.com/rocicorp/zero-sqlite3",
+  "author": "Rocicorp",
   "repository": {
     "type": "git",
-    "url": "git://github.com/tantaman/better-sqlite3-bedrock.git"
+    "url": "git://github.com/rocicorp/zero-sqlite3.git"
   },
   "main": "lib/index.js",
   "bin": {
