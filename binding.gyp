@@ -62,10 +62,5 @@
         },
       },
     },
-    {
-      'target_name': 'test_extension',
-      'dependencies': ['deps/sqlite3.gyp:sqlite3'],
-      'conditions': [['sqlite3 == ""', { 'sources': ['deps/test_extension.c'] }]],
-    },
   ],
 }
