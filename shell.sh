@@ -1,1 +1,0 @@
-./build/Release/zero_sqlite3

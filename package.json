@@ -1,6 +1,6 @@
 {
   "name": "@rocicorp/zero-sqlite3",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "better-sqlite3 on bedrock",
   "homepage": "https://github.com/rocicorp/zero-sqlite3",
   "author": "Rocicorp",
@@ -10,7 +10,7 @@
   },
   "main": "lib/index.js",
   "bin": {
-    "zero-sqlite3": "./shell.sh"
+    "zero-sqlite3": "./shell.ps1"
   },
   "files": [
     "binding.gyp",
