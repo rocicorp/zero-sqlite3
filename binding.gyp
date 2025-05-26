@@ -4,6 +4,9 @@
 
 {
   'includes': ['deps/common.gypi'],
+  'variables': {
+    'is_alpine%': '<!(test -f /etc/alpine-release && echo 1 || echo 0)',
+  },
   'targets': [
     {
       'target_name': 'better_sqlite3',
@@ -31,36 +34,44 @@
     },
     {
       'target_name': 'zero_sqlite3',
-      'type': 'executable',
-      'dependencies': ['deps/sqlite3.gyp:locate_sqlite3'],
-      'sources': ['<(SHARED_INTERMEDIATE_DIR)/sqlite3/sqlite3.c', '<(SHARED_INTERMEDIATE_DIR)/sqlite3/shell.c'],
-      'include_dirs': ['<(SHARED_INTERMEDIATE_DIR)/sqlite3/'],
-      'direct_dependent_settings': {
-        'include_dirs': ['<(SHARED_INTERMEDIATE_DIR)/sqlite3/'],
-      },
-      'cflags': ['-std=c99', '-w'],
-      'xcode_settings': {
-        'OTHER_CFLAGS': ['-std=c99'],
-        'WARNING_CFLAGS': ['-w'],
-      },
       'conditions': [
-        ['sqlite3 == ""', {
-          'includes': ['deps/defines.gypi'],
+        ['is_alpine == "1"', {
+          'type': 'none',
+          'dependencies': [],
+          'sources': [],
         }, {
-          'defines': [
-            # This is currently required by better-sqlite3.
-            'SQLITE_ENABLE_COLUMN_METADATA',
+          'type': 'executable',
+          'dependencies': ['deps/sqlite3.gyp:locate_sqlite3'],
+          'sources': ['<(SHARED_INTERMEDIATE_DIR)/sqlite3/sqlite3.c', '<(SHARED_INTERMEDIATE_DIR)/sqlite3/shell.c'],
+          'include_dirs': ['<(SHARED_INTERMEDIATE_DIR)/sqlite3/'],
+          'direct_dependent_settings': {
+            'include_dirs': ['<(SHARED_INTERMEDIATE_DIR)/sqlite3/'],
+          },
+          'cflags': ['-std=c99', '-w', '-D_POSIX_SOURCE'],
+          'xcode_settings': {
+            'OTHER_CFLAGS': ['-std=c99'],
+            'WARNING_CFLAGS': ['-w'],
+          },
+          'conditions': [
+            ['sqlite3 == ""', {
+              'includes': ['deps/defines.gypi'],
+            }, {
+              'defines': [
+                # This is currently required by better-sqlite3.
+                'SQLITE_ENABLE_COLUMN_METADATA',
+              ],
+            }]
           ],
+          'configurations': {
+            'Debug': {
+              'msvs_settings': { 'VCCLCompilerTool': { 'RuntimeLibrary': 1 } }, # static debug
+            },
+            'Release': {
+              'msvs_settings': { 'VCCLCompilerTool': { 'RuntimeLibrary': 0 } }, # static release
+            },
+          },
         }]
       ],
-      'configurations': {
-        'Debug': {
-          'msvs_settings': { 'VCCLCompilerTool': { 'RuntimeLibrary': 1 } }, # static debug
-        },
-        'Release': {
-          'msvs_settings': { 'VCCLCompilerTool': { 'RuntimeLibrary': 0 } }, # static release
-        },
-      },
     },
   ],
 }
