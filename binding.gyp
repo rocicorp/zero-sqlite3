@@ -60,7 +60,15 @@
                 # This is currently required by better-sqlite3.
                 'SQLITE_ENABLE_COLUMN_METADATA',
               ],
-            }]
+            }],
+            ['OS=="linux"', {
+              'defines':   ['HAVE_READLINE=1'],
+              'libraries': ['-lreadline', '-lncurses'],
+            }],
+            ['OS=="mac"',  {
+              'defines':   ['HAVE_EDITLINE=1'],
+              'libraries': ['-ledit', '-lncurses'],
+            }],
           ],
           'configurations': {
             'Debug': {

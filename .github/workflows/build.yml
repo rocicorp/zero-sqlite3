@@ -47,7 +47,7 @@ jobs:
       - if: ${{ startsWith(matrix.os, 'ubuntu') }}
         run: |
           sudo apt update
-          sudo apt install gcc-10 g++-10 -y
+          sudo apt install -y gcc-10 g++-10 libreadline-dev libncurses5-dev
           sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-10 100 --slave /usr/bin/g++ g++ /usr/bin/g++-10 --slave /usr/bin/gcov gcov /usr/bin/gcov-10
       - run: npm install --ignore-scripts
       - run: npm run build-debug
@@ -120,7 +120,7 @@ jobs:
     needs: test
     steps:
       - uses: actions/checkout@v4
-      - run: apk add build-base git python3 py3-setuptools libstdc++ --update-cache
+      - run: apk add build-base git python3 py3-setuptools libstdc++ readline-dev ncurses-dev --update-cache
       - run: npm install --ignore-scripts
       - run: ${{ env.NODE_BUILD_CMD }} -u ${{ secrets.GITHUB_TOKEN }}
 
@@ -140,7 +140,7 @@ jobs:
       - uses: docker/setup-qemu-action@v3
       - run: |
           docker run --rm -v $(pwd):/tmp/project --entrypoint /bin/sh --platform linux/${{ matrix.arch }} node:20-alpine -c "\
-          apk add build-base git python3 py3-setuptools --update-cache && \
+          apk add build-base git python3 py3-setuptools libstdc++ readline-dev ncurses-dev --update-cache && \
           cd /tmp/project && \
           npm install --ignore-scripts && \
           ${{ env.NODE_BUILD_CMD }} -u ${{ secrets.GITHUB_TOKEN }}"
