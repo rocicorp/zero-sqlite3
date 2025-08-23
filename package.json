@@ -17,7 +17,8 @@
     "src/*.[ch]pp",
     "lib/**",
     "deps/**",
-    "shell.sh"
+    "shell.sh",
+    "install.js"
   ],
   "types": "lib/index.d.ts",
   "dependencies": {
@@ -40,7 +41,7 @@
     "sqlite3": "^5.1.6"
   },
   "scripts": {
-    "install": "prebuild-install || node-gyp rebuild --release",
+    "install": "node install.js",
     "build-release": "node-gyp rebuild --release",
     "build-debug": "node-gyp rebuild --debug",
     "rebuild-release": "npm run lzz && npm run build-release",
