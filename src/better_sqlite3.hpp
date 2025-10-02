@@ -362,7 +362,9 @@ private:
   static void JS_safeIntegers (v8::FunctionCallbackInfo <v8 :: Value> const & info);
 #line 278 "./src/objects/statement.lzz"
   static void JS_columns (v8::FunctionCallbackInfo <v8 :: Value> const & info);
-#line 321 "./src/objects/statement.lzz"
+#line 322 "./src/objects/statement.lzz"
+  static void JS_scanStatusV2 (v8::FunctionCallbackInfo <v8 :: Value> const & info);
+#line 370 "./src/objects/statement.lzz"
   static void JS_busy (v8::Local <v8 :: Name> _, v8::PropertyCallbackInfo <v8 :: Value> const & info);
 #line 326 "./src/objects/statement.lzz"
   Database * const db;

@@ -73,6 +73,17 @@ NODE_MODULE_INIT(/* exports, context */) {
 	exports->Set(context, InternalizedFromLatin1(isolate, "Backup"), Backup::Init(isolate, data)).FromJust();
 	exports->Set(context, InternalizedFromLatin1(isolate, "setErrorConstructor"), v8::FunctionTemplate::New(isolate, Addon::JS_setErrorConstructor, data)->GetFunction(context).ToLocalChecked()).FromJust();
 
+	// Export SQLITE_SCANSTAT_* constants
+	exports->Set(context, InternalizedFromLatin1(isolate, "SQLITE_SCANSTAT_NLOOP"), v8::Int32::New(isolate, SQLITE_SCANSTAT_NLOOP)).FromJust();
+	exports->Set(context, InternalizedFromLatin1(isolate, "SQLITE_SCANSTAT_NVISIT"), v8::Int32::New(isolate, SQLITE_SCANSTAT_NVISIT)).FromJust();
+	exports->Set(context, InternalizedFromLatin1(isolate, "SQLITE_SCANSTAT_EST"), v8::Int32::New(isolate, SQLITE_SCANSTAT_EST)).FromJust();
+	exports->Set(context, InternalizedFromLatin1(isolate, "SQLITE_SCANSTAT_NAME"), v8::Int32::New(isolate, SQLITE_SCANSTAT_NAME)).FromJust();
+	exports->Set(context, InternalizedFromLatin1(isolate, "SQLITE_SCANSTAT_EXPLAIN"), v8::Int32::New(isolate, SQLITE_SCANSTAT_EXPLAIN)).FromJust();
+	exports->Set(context, InternalizedFromLatin1(isolate, "SQLITE_SCANSTAT_SELECTID"), v8::Int32::New(isolate, SQLITE_SCANSTAT_SELECTID)).FromJust();
+	exports->Set(context, InternalizedFromLatin1(isolate, "SQLITE_SCANSTAT_PARENTID"), v8::Int32::New(isolate, SQLITE_SCANSTAT_PARENTID)).FromJust();
+	exports->Set(context, InternalizedFromLatin1(isolate, "SQLITE_SCANSTAT_NCYCLE"), v8::Int32::New(isolate, SQLITE_SCANSTAT_NCYCLE)).FromJust();
+	exports->Set(context, InternalizedFromLatin1(isolate, "SQLITE_SCANSTAT_COMPLEX"), v8::Int32::New(isolate, SQLITE_SCANSTAT_COMPLEX)).FromJust();
+
 	// Store addon instance data.
 	addon->Statement.Reset(isolate, exports->Get(context, InternalizedFromLatin1(isolate, "Statement")).ToLocalChecked().As<v8::Function>());
 	addon->StatementIterator.Reset(isolate, exports->Get(context, InternalizedFromLatin1(isolate, "StatementIterator")).ToLocalChecked().As<v8::Function>());
@@ -773,6 +784,7 @@ v8::Local <v8 :: Function> Statement::Init (v8::Isolate * isolate, v8::Local <v8
                 SetPrototypeMethod(isolate, data, t, "raw", JS_raw);
                 SetPrototypeMethod(isolate, data, t, "safeIntegers", JS_safeIntegers);
                 SetPrototypeMethod(isolate, data, t, "columns", JS_columns);
+                SetPrototypeMethod(isolate, data, t, "scanStatusV2", JS_scanStatusV2);
                 SetPrototypeGetter(isolate, data, t, "busy", JS_busy);
                 return t->GetFunction( isolate -> GetCurrentContext ( ) ).ToLocalChecked();
 }
@@ -1083,9 +1095,59 @@ void Statement::JS_columns (v8::FunctionCallbackInfo <v8 :: Value> const & info)
 
                 info.GetReturnValue().Set(columns);
 }
-#line 321 "./src/objects/statement.lzz"
+#line 322 "./src/objects/statement.lzz"
+void Statement::JS_scanStatusV2 (v8::FunctionCallbackInfo <v8 :: Value> const & info)
+#line 322 "./src/objects/statement.lzz"
+                                                     {
+                Statement* stmt = node :: ObjectWrap :: Unwrap <Statement>(info.This());
+                if (!stmt->db->GetState()->open) return ThrowTypeError("The database connection is not open");
+                if (!stmt->alive) return ThrowTypeError("The statement has been finalized and can no longer be used");
+
+                int idx; if (info.Length() < (0 + 1) || !info[0]->IsInt32()) return ThrowTypeError("Expected " "first" " argument to be " "a 32-bit signed integer"); idx = (info[0].As<v8::Int32>()->Value());;
+                int iScanStatusOp; if (info.Length() < (1 + 1) || !info[1]->IsInt32()) return ThrowTypeError("Expected " "second" " argument to be " "a 32-bit signed integer"); iScanStatusOp = (info[1].As<v8::Int32>()->Value());;
+                int flags; if (info.Length() < (2 + 1) || !info[2]->IsInt32()) return ThrowTypeError("Expected " "third" " argument to be " "a 32-bit signed integer"); flags = (info[2].As<v8::Int32>()->Value());;
+
+                v8::Isolate* isolate = info.GetIsolate();;
+
+                // Based on iScanStatusOp, we know what type of output to expect
+                int rc;
+                if (iScanStatusOp == 0 || iScanStatusOp == 1 || iScanStatusOp == 5 || iScanStatusOp == 6 || iScanStatusOp == 7) {
+                        // NLOOP, NVISIT, SELECTID, PARENTID, NCYCLE - return sqlite3_int64
+                        sqlite3_int64 iOut;
+                        rc = sqlite3_stmt_scanstatus_v2(stmt->handle, idx, iScanStatusOp, flags, (void*)&iOut);
+                        if (rc == 0) {
+                                info.GetReturnValue().Set(stmt->safe_ints
+                                        ? v8::BigInt::New(isolate, iOut).As<v8::Value>()
+                                        : v8::Number::New(isolate, (double)iOut).As<v8::Value>());
+                                return;
+                        }
+                } else if (iScanStatusOp == 2) {
+                        // EST - return double
+                        double dOut;
+                        rc = sqlite3_stmt_scanstatus_v2(stmt->handle, idx, iScanStatusOp, flags, (void*)&dOut);
+                        if (rc == 0) {
+                                info.GetReturnValue().Set(v8::Number::New(isolate, dOut));
+                                return;
+                        }
+                } else if (iScanStatusOp == 3 || iScanStatusOp == 4) {
+                        // NAME, EXPLAIN - return const char*
+                        const char* zOut;
+                        rc = sqlite3_stmt_scanstatus_v2(stmt->handle, idx, iScanStatusOp, flags, (void*)&zOut);
+                        if (rc == 0 && zOut != NULL) {
+                                info.GetReturnValue().Set(StringFromUtf8(isolate, zOut, -1));
+                                return;
+                        } else if (rc == 0) {
+                                info.GetReturnValue().Set(v8::Null(isolate));
+                                return;
+                        }
+                }
+
+                // Error or invalid operation - return undefined
+                info.GetReturnValue().Set(v8::Undefined(isolate));
+}
+#line 370 "./src/objects/statement.lzz"
 void Statement::JS_busy (v8::Local <v8 :: Name> _, v8::PropertyCallbackInfo <v8 :: Value> const & info)
-#line 321 "./src/objects/statement.lzz"
+#line 370 "./src/objects/statement.lzz"
                              {
                 Statement* stmt = node :: ObjectWrap :: Unwrap <Statement>(info.This());
                 info.GetReturnValue().Set(stmt->alive && stmt->locked);
