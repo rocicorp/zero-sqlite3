@@ -23,6 +23,7 @@ declare namespace BetterSqlite3 {
         bind(...params: BindParameters): this;
         columns(): ColumnDefinition[];
         safeIntegers(toggleState?: boolean): this;
+        scanStatusV2(idx: number, opcode: number, resetFlag: number): number | string | undefined;
     }
 
     interface ColumnDefinition {
@@ -89,6 +90,16 @@ declare namespace BetterSqlite3 {
         prototype: Database;
 
         SqliteError: typeof SqliteError;
+
+        // scanstatus constants
+        SQLITE_SCANSTAT_NLOOP: number;
+        SQLITE_SCANSTAT_NVISIT: number;
+        SQLITE_SCANSTAT_EST: number;
+        SQLITE_SCANSTAT_NAME: number;
+        SQLITE_SCANSTAT_EXPLAIN: number;
+        SQLITE_SCANSTAT_SELECTID: number;
+        SQLITE_SCANSTAT_PARENTID: number;
+        SQLITE_SCANSTAT_NCYCLE: number;
     }
 }
 
