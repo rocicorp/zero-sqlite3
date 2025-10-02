@@ -80,6 +80,17 @@ NODE_MODULE_INIT(/* exports, context */) {
 	exports->Set(context, InternalizedFromLatin1(isolate, "Backup"), Backup::Init(isolate, data)).FromJust();
 	exports->Set(context, InternalizedFromLatin1(isolate, "setErrorConstructor"), v8::FunctionTemplate::New(isolate, Addon::JS_setErrorConstructor, data)->GetFunction(context).ToLocalChecked()).FromJust();
 
+	// Export SQLITE_SCANSTAT_* constants
+	exports->Set(context, InternalizedFromLatin1(isolate, "SQLITE_SCANSTAT_NLOOP"), v8::Int32::New(isolate, SQLITE_SCANSTAT_NLOOP)).FromJust();
+	exports->Set(context, InternalizedFromLatin1(isolate, "SQLITE_SCANSTAT_NVISIT"), v8::Int32::New(isolate, SQLITE_SCANSTAT_NVISIT)).FromJust();
+	exports->Set(context, InternalizedFromLatin1(isolate, "SQLITE_SCANSTAT_EST"), v8::Int32::New(isolate, SQLITE_SCANSTAT_EST)).FromJust();
+	exports->Set(context, InternalizedFromLatin1(isolate, "SQLITE_SCANSTAT_NAME"), v8::Int32::New(isolate, SQLITE_SCANSTAT_NAME)).FromJust();
+	exports->Set(context, InternalizedFromLatin1(isolate, "SQLITE_SCANSTAT_EXPLAIN"), v8::Int32::New(isolate, SQLITE_SCANSTAT_EXPLAIN)).FromJust();
+	exports->Set(context, InternalizedFromLatin1(isolate, "SQLITE_SCANSTAT_SELECTID"), v8::Int32::New(isolate, SQLITE_SCANSTAT_SELECTID)).FromJust();
+	exports->Set(context, InternalizedFromLatin1(isolate, "SQLITE_SCANSTAT_PARENTID"), v8::Int32::New(isolate, SQLITE_SCANSTAT_PARENTID)).FromJust();
+	exports->Set(context, InternalizedFromLatin1(isolate, "SQLITE_SCANSTAT_NCYCLE"), v8::Int32::New(isolate, SQLITE_SCANSTAT_NCYCLE)).FromJust();
+	exports->Set(context, InternalizedFromLatin1(isolate, "SQLITE_SCANSTAT_COMPLEX"), v8::Int32::New(isolate, SQLITE_SCANSTAT_COMPLEX)).FromJust();
+
 	// Store addon instance data.
 	addon->Statement.Reset(isolate, exports->Get(context, InternalizedFromLatin1(isolate, "Statement")).ToLocalChecked().As<v8::Function>());
 	addon->StatementIterator.Reset(isolate, exports->Get(context, InternalizedFromLatin1(isolate, "StatementIterator")).ToLocalChecked().As<v8::Function>());
