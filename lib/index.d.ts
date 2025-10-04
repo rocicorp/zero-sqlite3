@@ -5,6 +5,17 @@ type VariableArgFunction = (...params: any[]) => unknown;
 type ArgumentTypes<F extends VariableArgFunction> = F extends (...args: infer A) => unknown ? A : never;
 type ElementOf<T> = T extends Array<infer E> ? E : T;
 
+declare const enum ScanStatOpcode {
+    SQLITE_SCANSTAT_NLOOP = 0,
+    SQLITE_SCANSTAT_NVISIT = 1,
+    SQLITE_SCANSTAT_EST = 2,
+    SQLITE_SCANSTAT_NAME = 3,
+    SQLITE_SCANSTAT_EXPLAIN = 4,
+    SQLITE_SCANSTAT_SELECTID = 5,
+    SQLITE_SCANSTAT_PARENTID = 6,
+    SQLITE_SCANSTAT_NCYCLE = 7,
+}
+
 declare namespace BetterSqlite3 {
     interface Statement<BindParameters extends unknown[], Result = unknown> {
         database: Database;
@@ -23,7 +34,15 @@ declare namespace BetterSqlite3 {
         bind(...params: BindParameters): this;
         columns(): ColumnDefinition[];
         safeIntegers(toggleState?: boolean): this;
-        scanStatusV2(idx: number, opcode: number, resetFlag: number): number | string | undefined;
+        scanStatusV2(idx: number, opcode: ScanStatOpcode.SQLITE_SCANSTAT_NAME, resetFlag: number): string | undefined;
+        scanStatusV2(idx: number, opcode: ScanStatOpcode.SQLITE_SCANSTAT_EXPLAIN, resetFlag: number): string | undefined;
+        scanStatusV2(idx: number, opcode: ScanStatOpcode.SQLITE_SCANSTAT_NLOOP, resetFlag: number): number | undefined;
+        scanStatusV2(idx: number, opcode: ScanStatOpcode.SQLITE_SCANSTAT_NVISIT, resetFlag: number): number | undefined;
+        scanStatusV2(idx: number, opcode: ScanStatOpcode.SQLITE_SCANSTAT_EST, resetFlag: number): number | undefined;
+        scanStatusV2(idx: number, opcode: ScanStatOpcode.SQLITE_SCANSTAT_SELECTID, resetFlag: number): number | undefined;
+        scanStatusV2(idx: number, opcode: ScanStatOpcode.SQLITE_SCANSTAT_PARENTID, resetFlag: number): number | undefined;
+        scanStatusV2(idx: number, opcode: ScanStatOpcode.SQLITE_SCANSTAT_NCYCLE, resetFlag: number): number | undefined;
+        scanStatusV2(idx: number, opcode: ScanStatOpcode, resetFlag: number): number | string | undefined;
     }
 
     interface ColumnDefinition {
@@ -92,14 +111,14 @@ declare namespace BetterSqlite3 {
         SqliteError: typeof SqliteError;
 
         // scanstatus constants
-        SQLITE_SCANSTAT_NLOOP: number;
-        SQLITE_SCANSTAT_NVISIT: number;
-        SQLITE_SCANSTAT_EST: number;
-        SQLITE_SCANSTAT_NAME: number;
-        SQLITE_SCANSTAT_EXPLAIN: number;
-        SQLITE_SCANSTAT_SELECTID: number;
-        SQLITE_SCANSTAT_PARENTID: number;
-        SQLITE_SCANSTAT_NCYCLE: number;
+        SQLITE_SCANSTAT_NLOOP: ScanStatOpcode.SQLITE_SCANSTAT_NLOOP;
+        SQLITE_SCANSTAT_NVISIT: ScanStatOpcode.SQLITE_SCANSTAT_NVISIT;
+        SQLITE_SCANSTAT_EST: ScanStatOpcode.SQLITE_SCANSTAT_EST;
+        SQLITE_SCANSTAT_NAME: ScanStatOpcode.SQLITE_SCANSTAT_NAME;
+        SQLITE_SCANSTAT_EXPLAIN: ScanStatOpcode.SQLITE_SCANSTAT_EXPLAIN;
+        SQLITE_SCANSTAT_SELECTID: ScanStatOpcode.SQLITE_SCANSTAT_SELECTID;
+        SQLITE_SCANSTAT_PARENTID: ScanStatOpcode.SQLITE_SCANSTAT_PARENTID;
+        SQLITE_SCANSTAT_NCYCLE: ScanStatOpcode.SQLITE_SCANSTAT_NCYCLE;
     }
 }
 
