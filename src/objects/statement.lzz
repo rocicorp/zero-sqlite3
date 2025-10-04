@@ -13,6 +13,7 @@ public:
 		SetPrototypeMethod(isolate, data, t, "raw", JS_raw);
 		SetPrototypeMethod(isolate, data, t, "safeIntegers", JS_safeIntegers);
 		SetPrototypeMethod(isolate, data, t, "columns", JS_columns);
+		SetPrototypeMethod(isolate, data, t, "scanStatusV2", JS_scanStatusV2);
 		SetPrototypeGetter(isolate, data, t, "busy", JS_busy);
 		return t->GetFunction(OnlyContext).ToLocalChecked();
 	}
@@ -316,6 +317,54 @@ private:
 		}
 
 		info.GetReturnValue().Set(columns);
+	}
+
+	NODE_METHOD(JS_scanStatusV2) {
+		Statement* stmt = Unwrap<Statement>(info.This());
+		REQUIRE_DATABASE_OPEN(stmt->db->GetState());
+		if (!stmt->alive) return ThrowTypeError("The statement has been finalized and can no longer be used");
+
+		REQUIRE_ARGUMENT_INT32(first, int idx);
+		REQUIRE_ARGUMENT_INT32(second, int iScanStatusOp);
+		REQUIRE_ARGUMENT_INT32(third, int flags);
+
+		UseIsolate;
+
+		// Based on iScanStatusOp, we know what type of output to expect
+		int rc;
+		if (iScanStatusOp == 0 || iScanStatusOp == 1 || iScanStatusOp == 5 || iScanStatusOp == 6 || iScanStatusOp == 7) {
+			// NLOOP, NVISIT, SELECTID, PARENTID, NCYCLE - return sqlite3_int64
+			sqlite3_int64 iOut;
+			rc = sqlite3_stmt_scanstatus_v2(stmt->handle, idx, iScanStatusOp, flags, (void*)&iOut);
+			if (rc == 0) {
+				info.GetReturnValue().Set(stmt->safe_ints
+					? v8::BigInt::New(isolate, iOut).As<v8::Value>()
+					: v8::Number::New(isolate, (double)iOut).As<v8::Value>());
+				return;
+			}
+		} else if (iScanStatusOp == 2) {
+			// EST - return double
+			double dOut;
+			rc = sqlite3_stmt_scanstatus_v2(stmt->handle, idx, iScanStatusOp, flags, (void*)&dOut);
+			if (rc == 0) {
+				info.GetReturnValue().Set(v8::Number::New(isolate, dOut));
+				return;
+			}
+		} else if (iScanStatusOp == 3 || iScanStatusOp == 4) {
+			// NAME, EXPLAIN - return const char*
+			const char* zOut;
+			rc = sqlite3_stmt_scanstatus_v2(stmt->handle, idx, iScanStatusOp, flags, (void*)&zOut);
+			if (rc == 0 && zOut != NULL) {
+				info.GetReturnValue().Set(StringFromUtf8(isolate, zOut, -1));
+				return;
+			} else if (rc == 0) {
+				info.GetReturnValue().Set(v8::Null(isolate));
+				return;
+			}
+		}
+
+		// Error or invalid operation - return undefined
+		info.GetReturnValue().Set(v8::Undefined(isolate));
 	}
 
 	NODE_GETTER(JS_busy) {
