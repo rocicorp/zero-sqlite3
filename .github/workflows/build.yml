@@ -63,7 +63,7 @@ jobs:
           - macos-13
           - macos-14
         bun:
-          - 1.1.38
+          - 1.2.23
     name: Testing Bun ${{ matrix.bun }} on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     steps:
@@ -216,7 +216,7 @@ jobs:
           node-version: 20
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: 1.1.38
+          bun-version: 1.2.23
       - if: ${{ startsWith(matrix.os, 'macos') }}
         run: brew install python-setuptools
       - if: ${{ !startsWith(matrix.os, 'macos') }}
