@@ -43,6 +43,7 @@ private:
 	static NODE_METHOD(JS_raw);
 	static NODE_METHOD(JS_safeIntegers);
 	static NODE_METHOD(JS_columns);
+	static NODE_METHOD(JS_scanStatusV2);
 	static NODE_GETTER(JS_busy);
 
 	Database* const db;

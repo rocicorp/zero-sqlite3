@@ -64,6 +64,7 @@ INIT(Statement::Init) {
 	SetPrototypeMethod(isolate, data, t, "raw", JS_raw);
 	SetPrototypeMethod(isolate, data, t, "safeIntegers", JS_safeIntegers);
 	SetPrototypeMethod(isolate, data, t, "columns", JS_columns);
+	SetPrototypeMethod(isolate, data, t, "scanStatusV2", JS_scanStatusV2);
 	SetPrototypeGetter(isolate, data, t, "busy", JS_busy);
 	return t->GetFunction(OnlyContext).ToLocalChecked();
 }
@@ -375,6 +376,68 @@ NODE_METHOD(Statement::JS_columns) {
 		v8::Array::New(isolate, columns.data(), columns.size())
 	);
 #endif
+}
+
+NODE_METHOD(Statement::JS_scanStatusV2) {
+	Statement* stmt = Unwrap<Statement>(info.This());
+	REQUIRE_DATABASE_OPEN(stmt->db->GetState());
+	REQUIRE_DATABASE_NOT_BUSY(stmt->db->GetState());
+
+	// Validate arguments
+	REQUIRE_ARGUMENT_INT32(first, int idx);
+	REQUIRE_ARGUMENT_INT32(second, int opcode);
+	REQUIRE_ARGUMENT_INT32(third, int flags);
+
+	UseIsolate;
+	int rc;
+
+	// Call sqlite3_stmt_scanstatus_v2 with appropriate output type based on opcode
+	switch (opcode) {
+		case SQLITE_SCANSTAT_NAME:
+		case SQLITE_SCANSTAT_EXPLAIN: {
+			// String opcodes
+			const char* pOut;
+			rc = sqlite3_stmt_scanstatus_v2(stmt->handle, idx, opcode, flags, (void*)&pOut);
+			if (rc == SQLITE_OK && pOut != NULL) {
+				info.GetReturnValue().Set(InternalizedFromUtf8(isolate, pOut, -1));
+			} else {
+				info.GetReturnValue().Set(v8::Undefined(isolate));
+			}
+			return;
+		}
+		case SQLITE_SCANSTAT_EST: {
+			// Double opcode
+			double pOut;
+			rc = sqlite3_stmt_scanstatus_v2(stmt->handle, idx, opcode, flags, (void*)&pOut);
+			if (rc == SQLITE_OK) {
+				info.GetReturnValue().Set(v8::Number::New(isolate, pOut));
+			} else {
+				info.GetReturnValue().Set(v8::Undefined(isolate));
+			}
+			return;
+		}
+		case SQLITE_SCANSTAT_NLOOP:
+		case SQLITE_SCANSTAT_NVISIT:
+		case SQLITE_SCANSTAT_SELECTID:
+		case SQLITE_SCANSTAT_PARENTID:
+		case SQLITE_SCANSTAT_NCYCLE: {
+			// Integer opcodes
+			sqlite3_int64 pOut;
+			rc = sqlite3_stmt_scanstatus_v2(stmt->handle, idx, opcode, flags, (void*)&pOut);
+			if (rc == SQLITE_OK) {
+				if (stmt->safe_ints) {
+					info.GetReturnValue().Set(v8::BigInt::New(isolate, pOut));
+				} else {
+					info.GetReturnValue().Set(v8::Number::New(isolate, (double)pOut));
+				}
+			} else {
+				info.GetReturnValue().Set(v8::Undefined(isolate));
+			}
+			return;
+		}
+		default:
+			return ThrowRangeError("Invalid scanstatus opcode");
+	}
 }
 
 NODE_GETTER(Statement::JS_busy) {
