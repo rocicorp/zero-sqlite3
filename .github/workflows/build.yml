@@ -16,6 +16,8 @@ env:
   # See https://github.com/nodejs/release#release-schedule
   # Node.js v20 EOL = 2026-04-30. v22 EOL = 2027-04-30. v23 EOL = 2025-06-01. v24 EOL = 2028-04-30.
   NODE_BUILD_CMD: npx --no-install prebuild -r node -t 20.0.0 -t 22.0.0 -t 23.0.0 -t 24.0.0 --include-regex '_sqlite3'
+  # Bun versions - see https://github.com/oven-sh/bun/releases
+  BUN_BUILD_CMD: npx --no-install prebuild -r bun -t 1.1.0 --include-regex '_sqlite3'
 
 jobs:
   test:
@@ -53,6 +55,35 @@ jobs:
       - run: npm run build-debug
       - run: npm test
 
+  test-bun:
+    strategy:
+      matrix:
+        os:
+          - ubuntu-22.04
+          - macos-13
+          - macos-14
+        bun:
+          - 1.2.23
+    name: Testing Bun ${{ matrix.bun }} on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ matrix.bun }}
+      - if: ${{ startsWith(matrix.os, 'macos') }}
+        run: brew install python-setuptools
+      - if: ${{ !startsWith(matrix.os, 'macos') }}
+        run: python3 -m pip install setuptools
+      - if: ${{ startsWith(matrix.os, 'ubuntu') }}
+        run: |
+          sudo apt update
+          sudo apt install -y gcc-10 g++-10 libreadline-dev libncurses5-dev
+          sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-10 100 --slave /usr/bin/g++ g++ /usr/bin/g++-10 --slave /usr/bin/gcov gcov /usr/bin/gcov-10
+      - run: bun install --ignore-scripts
+      - run: bun run build-debug
+      - run: bun run test
+
   publish:
     if: ${{ github.event_name == 'release' }}
     name: Publishing to NPM
@@ -63,6 +94,7 @@ jobs:
       - prebuild-alpine-arm
       - prebuild-linux-x64
       - prebuild-linux-arm
+      - prebuild-bun
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -164,3 +196,35 @@ jobs:
           cd /tmp/project && \
           npm install --ignore-scripts && \
           ${{ env.NODE_BUILD_CMD }} -u ${{ secrets.GITHUB_TOKEN }}"
+
+  prebuild-bun:
+    if: ${{ github.event_name == 'release' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - macos-13
+          - macos-14
+          - ubuntu-22.04
+    name: Prebuild Bun on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    needs: test-bun
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 20
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.23
+      - if: ${{ startsWith(matrix.os, 'macos') }}
+        run: brew install python-setuptools
+      - if: ${{ !startsWith(matrix.os, 'macos') }}
+        run: python3 -m pip install setuptools
+      - if: ${{ startsWith(matrix.os, 'ubuntu') }}
+        run: |
+          sudo apt update
+          sudo apt install -y gcc-10 g++-10 libreadline-dev libncurses5-dev
+          sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-10 100 --slave /usr/bin/g++ g++ /usr/bin/g++-10 --slave /usr/bin/gcov gcov /usr/bin/gcov-10
+      - run: npm install --ignore-scripts
+      - run: ${{ env.BUN_BUILD_CMD }} -u ${{ secrets.GITHUB_TOKEN }}
