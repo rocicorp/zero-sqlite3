@@ -20,7 +20,8 @@
     "shell.sh"
   ],
   "engines": {
-    "node": "20.x || 22.x || 23.x || 24.x"
+    "node": "20.x || 22.x || 23.x || 24.x",
+    "bun": ">=1.1.0"
   },
   "types": "lib/index.d.ts",
   "dependencies": {
