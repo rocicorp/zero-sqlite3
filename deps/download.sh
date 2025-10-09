@@ -74,7 +74,7 @@ mkdir -p "$OUTPUT"
 export CFLAGS=`echo $(echo "$DEFINES" | sed -e "/^\s*$/d" -e "s/^/-D/")`
 
 echo "downloading source..."
-curl -#f "https://sqlite.org/src/zip/$CHECKIN/SQLite-$CHECKIN.zip" > "$TEMP/source.zip" || exit 1
+curl -#f "https://www.sqlite.org/src/zip/$CHECKIN/SQLite-$CHECKIN.zip" > "$TEMP/source.zip" || exit 1
 
 echo "extracting source..."
 unzip "$TEMP/source.zip" -d "$TEMP" > /dev/null || exit 1
