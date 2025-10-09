@@ -75,7 +75,6 @@ private:
 	static NODE_METHOD(JS_function);
 	static NODE_METHOD(JS_aggregate);
 	static NODE_METHOD(JS_table);
-	static NODE_METHOD(JS_loadExtension);
 	static NODE_METHOD(JS_close);
 	static NODE_METHOD(JS_defaultSafeIntegers);
 	static NODE_METHOD(JS_unsafeMode);
