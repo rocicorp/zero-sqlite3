@@ -416,12 +416,22 @@ NODE_METHOD(Statement::JS_scanStatusV2) {
 			}
 			return;
 		}
+		case SQLITE_SCANSTAT_SELECTID:
+		case SQLITE_SCANSTAT_PARENTID: {
+			// Integer opcodes (int)
+			int pOut;
+			rc = sqlite3_stmt_scanstatus_v2(stmt->handle, idx, opcode, flags, (void*)&pOut);
+			if (rc == SQLITE_OK) {
+				info.GetReturnValue().Set(v8::Number::New(isolate, (double)pOut));
+			} else {
+				info.GetReturnValue().Set(v8::Undefined(isolate));
+			}
+			return;
+		}
 		case SQLITE_SCANSTAT_NLOOP:
 		case SQLITE_SCANSTAT_NVISIT:
-		case SQLITE_SCANSTAT_SELECTID:
-		case SQLITE_SCANSTAT_PARENTID:
 		case SQLITE_SCANSTAT_NCYCLE: {
-			// Integer opcodes
+			// Integer opcodes (int64)
 			sqlite3_int64 pOut;
 			rc = sqlite3_stmt_scanstatus_v2(stmt->handle, idx, opcode, flags, (void*)&pOut);
 			if (rc == SQLITE_OK) {

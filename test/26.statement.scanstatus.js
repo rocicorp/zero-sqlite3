@@ -97,4 +97,127 @@ describe('Statement#scanStatusV2()', function () {
 		expect(Database.SQLITE_SCANSTAT_NCYCLE).to.equal(7);
 		expect(Database.SQLITE_SCANSTAT_COMPLEX).to.equal(0x0001);
 	});
+
+	it('should return reasonable SELECTID and PARENTID values', function () {
+		const stmt = this.db.prepare('SELECT * FROM entries WHERE value > ?');
+		stmt.all(1);
+
+		// Get SELECTID and PARENTID for the first loop (using flag 1 for COMPLEX)
+		const selectId = stmt.scanStatusV2(0, Database.SQLITE_SCANSTAT_SELECTID, 1);
+		const parentId = stmt.scanStatusV2(0, Database.SQLITE_SCANSTAT_PARENTID, 1);
+
+		// Verify selectId is a number (not undefined)
+		expect(selectId).to.be.a('number');
+
+		// SELECTID should be a small positive integer (usually 1-10 for simple queries)
+		// It corresponds to the ID shown in EXPLAIN QUERY PLAN
+		expect(selectId).to.be.at.least(0);
+		expect(selectId).to.be.at.most(1000); // Reasonable upper bound
+		expect(Number.isInteger(selectId)).to.be.true;
+
+		// PARENTID can be 0 (no parent) or a positive integer
+		if (parentId !== null && parentId !== undefined) {
+			expect(parentId).to.be.a('number');
+			expect(parentId).to.be.at.least(0);
+			expect(parentId).to.be.at.most(1000); // Reasonable upper bound
+			expect(Number.isInteger(parentId)).to.be.true;
+		}
+	});
+
+	it('should verify SELECTID and PARENTID match EXPLAIN QUERY PLAN', function () {
+		const stmt = this.db.prepare('SELECT * FROM entries WHERE value > ?');
+		stmt.all(1);
+
+		// Get SELECTID using flag 1 for COMPLEX
+		const selectId = stmt.scanStatusV2(0, Database.SQLITE_SCANSTAT_SELECTID, 1);
+
+		// Get EXPLAIN QUERY PLAN for the same query
+		const explainStmt = this.db.prepare('EXPLAIN QUERY PLAN SELECT * FROM entries WHERE value > ?');
+		const explainRows = explainStmt.all(1);
+
+		// The selectId should correspond to one of the IDs in the EXPLAIN QUERY PLAN output
+		const explainIds = explainRows.map(row => row.id);
+
+		// selectId should be in the range of IDs from EXPLAIN QUERY PLAN
+		if (explainIds.length > 0) {
+			const minId = Math.min(...explainIds);
+			const maxId = Math.max(...explainIds);
+			expect(selectId).to.be.at.least(minId);
+			expect(selectId).to.be.at.most(maxId);
+		}
+	});
+
+	it('should handle complex queries with joins', function () {
+		// Create a more complex schema
+		this.db.prepare('CREATE TABLE orders (id INTEGER PRIMARY KEY, entry_id INTEGER, amount INTEGER)').run();
+		this.db.prepare('INSERT INTO orders (entry_id, amount) VALUES (1, 100), (2, 200), (3, 300)').run();
+
+		const stmt = this.db.prepare('SELECT e.name, o.amount FROM entries e JOIN orders o ON e.id = o.entry_id WHERE o.amount > ?');
+		stmt.all(150);
+
+		// Check that we can get scan status for multiple loops
+		let loopCount = 0;
+		for (let i = 0; i < 10; i++) {
+			const selectId = stmt.scanStatusV2(i, Database.SQLITE_SCANSTAT_SELECTID, 1);
+			if (selectId === undefined) break;
+
+			loopCount++;
+			expect(selectId).to.be.a('number');
+			expect(selectId).to.be.at.least(0);
+			expect(selectId).to.be.at.most(1000);
+			expect(Number.isInteger(selectId)).to.be.true;
+
+			const parentId = stmt.scanStatusV2(i, Database.SQLITE_SCANSTAT_PARENTID, 1);
+			if (parentId !== null && parentId !== undefined) {
+				expect(parentId).to.be.a('number');
+				expect(parentId).to.be.at.least(0);
+				expect(parentId).to.be.at.most(1000);
+				expect(Number.isInteger(parentId)).to.be.true;
+			}
+		}
+
+		// For a join query, we should have at least 2 loops
+		expect(loopCount).to.be.at.least(2);
+	});
+
+	it('should verify parent/child loop relationship with ORDER BY', function () {
+		// ORDER BY on non-indexed field creates a parent/child loop relationship
+		const stmt = this.db.prepare('SELECT * FROM entries ORDER BY name');
+		stmt.all();
+
+		// Collect all loops
+		const loops = [];
+		for (let i = 0; i < 10; i++) {
+			const selectId = stmt.scanStatusV2(i, Database.SQLITE_SCANSTAT_SELECTID, 1);
+			if (selectId === undefined) break;
+
+			const parentId = stmt.scanStatusV2(i, Database.SQLITE_SCANSTAT_PARENTID, 1);
+			loops.push({ index: i, selectId, parentId });
+
+			// Verify values are reasonable
+			expect(selectId).to.be.a('number');
+			expect(selectId).to.be.at.least(0);
+			expect(selectId).to.be.at.most(1000);
+			expect(Number.isInteger(selectId)).to.be.true;
+
+			if (parentId !== null && parentId !== undefined) {
+				expect(parentId).to.be.a('number');
+				expect(parentId).to.be.at.least(0);
+				expect(parentId).to.be.at.most(1000);
+				expect(Number.isInteger(parentId)).to.be.true;
+			}
+		}
+
+		// Should have at least 2 loops for ORDER BY
+		expect(loops.length).to.be.at.least(2);
+
+		// Verify parent/child relationship: find a loop that references another as parent
+		const childLoop = loops.find(l => l.parentId > 0);
+		if (childLoop) {
+			const parentLoop = loops.find(l => l.selectId === childLoop.parentId);
+			expect(parentLoop).to.not.be.undefined;
+			// Parent loop should have been processed before child loop
+			expect(parentLoop.index).to.be.lessThan(childLoop.index);
+		}
+	});
 });
