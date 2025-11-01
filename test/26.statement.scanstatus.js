@@ -220,4 +220,47 @@ describe('Statement#scanStatusV2()', function () {
 			expect(parentLoop.index).to.be.lessThan(childLoop.index);
 		}
 	});
+
+	it('should reset scan status and allow collecting fresh statistics', function () {
+		// Create an in-memory database for this test
+		const memDb = new Database(':memory:');
+
+		// Seed the database with test data
+		memDb.prepare('CREATE TABLE test_table (id INTEGER PRIMARY KEY, name TEXT, value INTEGER)').run();
+		const insertStmt = memDb.prepare('INSERT INTO test_table (name, value) VALUES (?, ?)');
+		for (let i = 0; i < 100; i++) {
+			insertStmt.run(`item_${i}`, i);
+		}
+
+		// Prepare a query
+		const stmt = memDb.prepare('SELECT * FROM test_table WHERE value > ? ORDER BY value');
+
+		// Run the query first time
+		const rows1 = stmt.all(50);
+		expect(rows1).to.have.lengthOf(49);
+
+		// Get scan status statistics after first run
+		const nVisit1 = stmt.scanStatusV2(0, Database.SQLITE_SCANSTAT_NVISIT, 0);
+		expect(nVisit1).to.be.a('number');
+		expect(nVisit1).to.be.greaterThan(0);
+
+		// Reset scan status
+		const result = stmt.scanStatusReset();
+		expect(result).to.equal(stmt); // Should return this for chaining
+
+		// Run the same query again
+		const rows2 = stmt.all(50);
+		expect(rows2).to.have.lengthOf(49);
+
+		// Get scan status statistics after second run (after reset)
+		const nVisit2 = stmt.scanStatusV2(0, Database.SQLITE_SCANSTAT_NVISIT, 0);
+		expect(nVisit2).to.be.a('number');
+		expect(nVisit2).to.be.greaterThan(0);
+
+		// After reset, the statistics should be fresh and equal to the first run
+		// since we're running the same query with the same parameters
+		expect(nVisit2).to.equal(nVisit1);
+
+		memDb.close();
+	});
 });
