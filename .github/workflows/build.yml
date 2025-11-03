@@ -35,7 +35,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@v6
         with:
           node-version: ${{ matrix.node }}
       - if: ${{ startsWith(matrix.os, 'windows') }}
@@ -94,7 +94,7 @@ jobs:
       - prebuild-linux-arm
     steps:
       - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@v6
         with:
           node-version: 20
           registry-url: https://registry.npmjs.org
@@ -116,7 +116,7 @@ jobs:
     needs: test
     steps:
       - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@v6
         with:
           node-version: 20
       - if: ${{ startsWith(matrix.os, 'windows') }}
