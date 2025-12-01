@@ -16,6 +16,8 @@ struct Addon;
 class Database;
 class Statement;
 class StatementIterator;
+class LazyColumnIterator;
+class LazyRow;
 class Backup;
 
 #include "util/macros.cpp"
@@ -33,6 +35,8 @@ class Backup;
 #include "objects/database.hpp"
 #include "addon.cpp"
 #include "objects/statement-iterator.hpp"
+#include "objects/lazy-row.hpp"
+#include "objects/lazy-column-iterator.hpp"
 
 #include "util/query-macros.cpp"
 #include "util/custom-function.cpp"
@@ -44,6 +48,8 @@ class Backup;
 #include "objects/statement.cpp"
 #include "objects/database.cpp"
 #include "objects/statement-iterator.cpp"
+#include "objects/lazy-row.cpp"
+#include "objects/lazy-column-iterator.cpp"
 
 NODE_MODULE_INIT(/* exports, context */) {
 	v8::Isolate* isolate = context->GetIsolate();
@@ -59,6 +65,8 @@ NODE_MODULE_INIT(/* exports, context */) {
 	exports->Set(context, InternalizedFromLatin1(isolate, "Database"), Database::Init(isolate, data)).FromJust();
 	exports->Set(context, InternalizedFromLatin1(isolate, "Statement"), Statement::Init(isolate, data)).FromJust();
 	exports->Set(context, InternalizedFromLatin1(isolate, "StatementIterator"), StatementIterator::Init(isolate, data)).FromJust();
+	exports->Set(context, InternalizedFromLatin1(isolate, "LazyColumnIterator"), LazyColumnIterator::Init(isolate, data)).FromJust();
+	exports->Set(context, InternalizedFromLatin1(isolate, "LazyRow"), LazyRow::Init(isolate, data)).FromJust();
 	exports->Set(context, InternalizedFromLatin1(isolate, "Backup"), Backup::Init(isolate, data)).FromJust();
 	exports->Set(context, InternalizedFromLatin1(isolate, "setErrorConstructor"), v8::FunctionTemplate::New(isolate, Addon::JS_setErrorConstructor, data)->GetFunction(context).ToLocalChecked()).FromJust();
 
@@ -76,5 +84,7 @@ NODE_MODULE_INIT(/* exports, context */) {
 	// Store addon instance data.
 	addon->Statement.Reset(isolate, exports->Get(context, InternalizedFromLatin1(isolate, "Statement")).ToLocalChecked().As<v8::Function>());
 	addon->StatementIterator.Reset(isolate, exports->Get(context, InternalizedFromLatin1(isolate, "StatementIterator")).ToLocalChecked().As<v8::Function>());
+	addon->LazyColumnIterator.Reset(isolate, exports->Get(context, InternalizedFromLatin1(isolate, "LazyColumnIterator")).ToLocalChecked().As<v8::Function>());
+	addon->LazyRow.Reset(isolate, exports->Get(context, InternalizedFromLatin1(isolate, "LazyRow")).ToLocalChecked().As<v8::Function>());
 	addon->Backup.Reset(isolate, exports->Get(context, InternalizedFromLatin1(isolate, "Backup")).ToLocalChecked().As<v8::Function>());
 }

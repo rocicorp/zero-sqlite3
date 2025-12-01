@@ -58,6 +58,7 @@ INIT(Statement::Init) {
 	SetPrototypeMethod(isolate, data, t, "get", JS_get);
 	SetPrototypeMethod(isolate, data, t, "all", JS_all);
 	SetPrototypeMethod(isolate, data, t, "iterate", JS_iterate);
+	SetPrototypeMethod(isolate, data, t, "iterateWithLazyColumns", JS_iterateWithLazyColumns);
 	SetPrototypeMethod(isolate, data, t, "bind", JS_bind);
 	SetPrototypeMethod(isolate, data, t, "pluck", JS_pluck);
 	SetPrototypeMethod(isolate, data, t, "expand", JS_expand);
@@ -316,6 +317,16 @@ NODE_METHOD(Statement::JS_iterate) {
 	UseAddon;
 	UseIsolate;
 	v8::Local<v8::Function> c = addon->StatementIterator.Get(isolate);
+	addon->privileged_info = &info;
+	v8::MaybeLocal<v8::Object> maybeIterator = c->NewInstance(OnlyContext, 0, NULL);
+	addon->privileged_info = NULL;
+	if (!maybeIterator.IsEmpty()) info.GetReturnValue().Set(maybeIterator.ToLocalChecked());
+}
+
+NODE_METHOD(Statement::JS_iterateWithLazyColumns) {
+	UseAddon;
+	UseIsolate;
+	v8::Local<v8::Function> c = addon->LazyColumnIterator.Get(isolate);
 	addon->privileged_info = &info;
 	v8::MaybeLocal<v8::Object> maybeIterator = c->NewInstance(OnlyContext, 0, NULL);
 	addon->privileged_info = NULL;

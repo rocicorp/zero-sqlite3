@@ -1,4 +1,4 @@
-class Statement : public node::ObjectWrap { friend class StatementIterator;
+class Statement : public node::ObjectWrap { friend class StatementIterator; friend class LazyColumnIterator;
 public:
 
 	~Statement();
@@ -37,6 +37,7 @@ private:
 	static NODE_METHOD(JS_get);
 	static NODE_METHOD(JS_all);
 	static NODE_METHOD(JS_iterate);
+	static NODE_METHOD(JS_iterateWithLazyColumns);
 	static NODE_METHOD(JS_bind);
 	static NODE_METHOD(JS_pluck);
 	static NODE_METHOD(JS_expand);
