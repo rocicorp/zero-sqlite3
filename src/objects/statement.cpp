@@ -58,7 +58,7 @@ INIT(Statement::Init) {
 	SetPrototypeMethod(isolate, data, t, "get", JS_get);
 	SetPrototypeMethod(isolate, data, t, "all", JS_all);
 	SetPrototypeMethod(isolate, data, t, "iterate", JS_iterate);
-	SetPrototypeMethod(isolate, data, t, "iterateWithLazyColumns", JS_iterateWithLazyColumns);
+	SetPrototypeMethod(isolate, data, t, "_nativeIterateWithLazyColumns", JS_iterateWithLazyColumns);
 	SetPrototypeMethod(isolate, data, t, "bind", JS_bind);
 	SetPrototypeMethod(isolate, data, t, "pluck", JS_pluck);
 	SetPrototypeMethod(isolate, data, t, "expand", JS_expand);

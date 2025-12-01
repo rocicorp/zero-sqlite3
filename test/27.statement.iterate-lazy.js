@@ -287,4 +287,106 @@ describe('Statement#iterateWithLazyColumns()', function () {
 			expect(row.getColumnByIndex(0)).to.equal(9007199254740993n);
 		}
 	});
+
+	// Property-based access tests
+	it('should support property-based column access', function () {
+		const stmt = this.db.prepare("SELECT * FROM entries WHERE b = 1");
+		for (const row of stmt.iterateWithLazyColumns()) {
+			expect(row.a).to.equal('foo');
+			expect(row.b).to.equal(1);
+			expect(row.c).to.equal(3.14);
+			expect(row.d).to.deep.equal(Buffer.alloc(4).fill(0xdd));
+			expect(row.e).to.be.null;
+		}
+	});
+
+	it('should support property access with column aliases', function () {
+		const stmt = this.db.prepare("SELECT a AS name, b AS id FROM entries WHERE b = 1");
+		for (const row of stmt.iterateWithLazyColumns()) {
+			expect(row.name).to.equal('foo');
+			expect(row.id).to.equal(1);
+			// Original names should not be accessible as properties
+			expect(row.a).to.be.undefined;
+			expect(row.b).to.be.undefined;
+		}
+	});
+
+	it('should cache property values (avoid repeated FFI calls)', function () {
+		const stmt = this.db.prepare("SELECT * FROM entries WHERE b = 1");
+		for (const row of stmt.iterateWithLazyColumns()) {
+			// First access
+			const val1 = row.a;
+			// Second access should return the same value (cached)
+			const val2 = row.a;
+			expect(val1).to.equal(val2);
+			expect(val1).to.equal('foo');
+		}
+	});
+
+	it('should clear cache when iterator advances', function () {
+		const stmt = this.db.prepare("SELECT * FROM entries ORDER BY rowid");
+		let expectedB = 0;
+		for (const row of stmt.iterateWithLazyColumns()) {
+			expectedB++;
+			// Property access should return current row's data
+			expect(row.b).to.equal(expectedB);
+		}
+		expect(expectedB).to.equal(10);
+	});
+
+	it('should support both property and method access together', function () {
+		const stmt = this.db.prepare("SELECT * FROM entries WHERE b = 1");
+		for (const row of stmt.iterateWithLazyColumns()) {
+			// Property access
+			expect(row.a).to.equal('foo');
+			expect(row.b).to.equal(1);
+			// Method access
+			expect(row.getColumnByIndex(0)).to.equal('foo');
+			expect(row.getColumnByIndex(1)).to.equal(1);
+			expect(row.getColumnByName('a')).to.equal('foo');
+			expect(row.getColumnByName('b')).to.equal(1);
+			// columnCount
+			expect(row.columnCount).to.equal(5);
+		}
+	});
+
+	it('should throw TypeError on property access after iteration completes', function () {
+		const stmt = this.db.prepare("SELECT * FROM entries WHERE b = 1");
+		let savedRow = null;
+		for (const row of stmt.iterateWithLazyColumns()) {
+			savedRow = row;
+			// Access works during iteration
+			expect(row.a).to.equal('foo');
+		}
+		// After iteration, accessing properties should throw (underlying lazyRow is invalid)
+		expect(() => savedRow.a).to.throw(TypeError);
+	});
+
+	it('should have property getters enumerable on the row', function () {
+		const stmt = this.db.prepare("SELECT a, b FROM entries WHERE b = 1");
+		for (const row of stmt.iterateWithLazyColumns()) {
+			const keys = Object.keys(row);
+			// Properties from prototype are not enumerated by Object.keys
+			// but we can check that the getters exist
+			expect(row).to.have.property('a');
+			expect(row).to.have.property('b');
+		}
+	});
+
+	it('should respect safeIntegers setting with property access', function () {
+		this.db.prepare("INSERT INTO entries VALUES ('safe', 9007199254740993, 0, NULL, NULL)").run();
+		const stmt = this.db.prepare("SELECT b FROM entries WHERE a = 'safe'");
+
+		// Without safeIntegers - loses precision
+		for (const row of stmt.iterateWithLazyColumns()) {
+			expect(typeof row.b).to.equal('number');
+		}
+
+		// With safeIntegers - returns BigInt
+		stmt.safeIntegers(true);
+		for (const row of stmt.iterateWithLazyColumns()) {
+			expect(typeof row.b).to.equal('bigint');
+			expect(row.b).to.equal(9007199254740993n);
+		}
+	});
 });

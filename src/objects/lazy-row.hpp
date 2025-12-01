@@ -16,6 +16,7 @@ private:
 	static NODE_METHOD(JS_new);
 	static NODE_METHOD(JS_getColumnByIndex);
 	static NODE_METHOD(JS_getColumnByName);
+	static NODE_METHOD(JS_getGeneration);
 	static NODE_GETTER(JS_columnCount);
 
 	LazyColumnIterator* const iterator;

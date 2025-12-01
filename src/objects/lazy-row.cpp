@@ -9,6 +9,7 @@ INIT(LazyRow::Init) {
 	v8::Local<v8::FunctionTemplate> t = NewConstructorTemplate(isolate, data, JS_new, "LazyRow");
 	SetPrototypeMethod(isolate, data, t, "getColumnByIndex", JS_getColumnByIndex);
 	SetPrototypeMethod(isolate, data, t, "getColumnByName", JS_getColumnByName);
+	SetPrototypeMethod(isolate, data, t, "_getGeneration", JS_getGeneration);
 	SetPrototypeGetter(isolate, data, t, "columnCount", JS_columnCount);
 	return t->GetFunction(OnlyContext).ToLocalChecked();
 }
@@ -80,4 +81,9 @@ NODE_GETTER(LazyRow::JS_columnCount) {
 	LazyRow* row = Unwrap<LazyRow>(info.This());
 	// columnCount is always valid since it's constant for the statement
 	info.GetReturnValue().Set(row->iterator->GetColumnCount());
+}
+
+NODE_METHOD(LazyRow::JS_getGeneration) {
+	LazyRow* row = Unwrap<LazyRow>(info.This());
+	info.GetReturnValue().Set(row->generation);
 }
