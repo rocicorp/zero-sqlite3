@@ -28,6 +28,7 @@ declare namespace BetterSqlite3 {
         get(...params: BindParameters): Result | undefined;
         all(...params: BindParameters): Result[];
         iterate(...params: BindParameters): IterableIterator<Result>;
+        iterateWithLazyColumns(...params: BindParameters): IterableIterator<LazyRow & Result>;
         pluck(toggleState?: boolean): this;
         expand(toggleState?: boolean): this;
         raw(toggleState?: boolean): this;
@@ -53,6 +54,13 @@ declare namespace BetterSqlite3 {
         table: string | null;
         database: string | null;
         type: string | null;
+    }
+
+    interface LazyRow {
+        /** Get column value by zero-based index (fallback for dynamic access) */
+        getColumnByIndex(index: number): unknown;
+        /** Number of columns in the row */
+        readonly columnCount: number;
     }
 
     interface Transaction<F extends VariableArgFunction> {
@@ -175,6 +183,7 @@ declare namespace Database {
         unknown[] ? BetterSqlite3.Statement<BindParameters, Result>
         : BetterSqlite3.Statement<[BindParameters], Result>;
     type ColumnDefinition = BetterSqlite3.ColumnDefinition;
+    type LazyRow = BetterSqlite3.LazyRow;
     type Transaction<T extends VariableArgFunction = VariableArgFunction> = BetterSqlite3.Transaction<T>;
     type Database = BetterSqlite3.Database;
 }

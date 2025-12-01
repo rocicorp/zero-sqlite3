@@ -43,7 +43,7 @@ describe('Statement#iterateWithLazyColumns()', function () {
 		for (const row of iterator) {
 			count++;
 			expect(row.getColumnByIndex(1)).to.equal(count);
-			expect(row.getColumnByName('a')).to.equal('foo');
+			expect(row.a).to.equal('foo');
 			expect(stmt.busy).to.be.true;
 		}
 		expect(count).to.equal(10);
@@ -69,14 +69,14 @@ describe('Statement#iterateWithLazyColumns()', function () {
 		}
 	});
 
-	it('should support getColumnByName for all columns', function () {
+	it('should support property access for all columns', function () {
 		const stmt = this.db.prepare("SELECT * FROM entries WHERE b = 1");
 		for (const row of stmt.iterateWithLazyColumns()) {
-			expect(row.getColumnByName('a')).to.equal('foo');
-			expect(row.getColumnByName('b')).to.equal(1);
-			expect(row.getColumnByName('c')).to.equal(3.14);
-			expect(row.getColumnByName('d')).to.deep.equal(Buffer.alloc(4).fill(0xdd));
-			expect(row.getColumnByName('e')).to.be.null;
+			expect(row.a).to.equal('foo');
+			expect(row.b).to.equal(1);
+			expect(row.c).to.equal(3.14);
+			expect(row.d).to.deep.equal(Buffer.alloc(4).fill(0xdd));
+			expect(row.e).to.be.null;
 		}
 	});
 
@@ -101,7 +101,7 @@ describe('Statement#iterateWithLazyColumns()', function () {
 			expectedB++;
 			// The same row object should now have updated data
 			expect(row.getColumnByIndex(1)).to.equal(expectedB);
-			expect(row.getColumnByName('b')).to.equal(expectedB);
+			expect(row.b).to.equal(expectedB);
 		}
 		expect(expectedB).to.equal(10);
 	});
@@ -115,7 +115,7 @@ describe('Statement#iterateWithLazyColumns()', function () {
 		}
 		// Row should be invalid after iteration completes
 		expect(() => savedRow.getColumnByIndex(0)).to.throw(TypeError);
-		expect(() => savedRow.getColumnByName('a')).to.throw(TypeError);
+		expect(() => savedRow.a).to.throw(TypeError);
 	});
 
 	it('should invalidate the row when using break', function () {
@@ -149,12 +149,11 @@ describe('Statement#iterateWithLazyColumns()', function () {
 		}
 	});
 
-	it('should throw RangeError for invalid column name', function () {
+	it('should return undefined for non-existent column properties', function () {
 		const stmt = this.db.prepare("SELECT * FROM entries WHERE b = 1");
 		for (const row of stmt.iterateWithLazyColumns()) {
-			expect(() => row.getColumnByName('nonexistent')).to.throw(RangeError);
-			expect(() => row.getColumnByName('')).to.throw(RangeError);
-			expect(() => row.getColumnByName('A')).to.throw(RangeError); // case sensitive
+			expect(row.nonexistent).to.be.undefined;
+			expect(row.A).to.be.undefined; // case sensitive - 'a' exists but 'A' does not
 			break;
 		}
 	});
@@ -203,8 +202,8 @@ describe('Statement#iterateWithLazyColumns()', function () {
 		// Test with positional parameters
 		let count = 0;
 		for (const row of this.db.prepare(SQL1).iterateWithLazyColumns('foo', 1, 3.14, Buffer.alloc(4).fill(0xdd), null)) {
-			expect(row.getColumnByName('a')).to.equal('foo');
-			expect(row.getColumnByName('b')).to.equal(1);
+			expect(row.a).to.equal('foo');
+			expect(row.b).to.equal(1);
 			count++;
 		}
 		expect(count).to.equal(1);
@@ -212,7 +211,7 @@ describe('Statement#iterateWithLazyColumns()', function () {
 		// Test with named parameters
 		count = 0;
 		for (const row of this.db.prepare(SQL2).iterateWithLazyColumns({ a: 'foo', b: 1, c: 3.14, d: Buffer.alloc(4).fill(0xdd), e: undefined })) {
-			expect(row.getColumnByName('a')).to.equal('foo');
+			expect(row.a).to.equal('foo');
 			count++;
 		}
 		expect(count).to.equal(1);
@@ -239,8 +238,8 @@ describe('Statement#iterateWithLazyColumns()', function () {
 		const results = [];
 		for (const row of stmt.iterateWithLazyColumns()) {
 			results.push({
-				a: row.getColumnByName('a'),
-				b: row.getColumnByName('b'),
+				a: row.a,
+				b: row.b,
 			});
 		}
 		expect(results).to.deep.equal([
@@ -255,19 +254,19 @@ describe('Statement#iterateWithLazyColumns()', function () {
 			expect(row.columnCount).to.equal(2);
 			expect(row.getColumnByIndex(0)).to.equal('foo');
 			expect(row.getColumnByIndex(1)).to.equal(1);
-			expect(row.getColumnByName('name')).to.equal('foo');
-			expect(row.getColumnByName('id')).to.equal(1);
-			// Original names should not work
-			expect(() => row.getColumnByName('a')).to.throw(RangeError);
-			expect(() => row.getColumnByName('b')).to.throw(RangeError);
+			expect(row.name).to.equal('foo');
+			expect(row.id).to.equal(1);
+			// Original names should not work (return undefined)
+			expect(row.a).to.be.undefined;
+			expect(row.b).to.be.undefined;
 		}
 	});
 
 	it('should work with expressions', function () {
 		const stmt = this.db.prepare("SELECT b + 100 AS computed, a || '_suffix' AS concat FROM entries WHERE b = 1");
 		for (const row of stmt.iterateWithLazyColumns()) {
-			expect(row.getColumnByName('computed')).to.equal(101);
-			expect(row.getColumnByName('concat')).to.equal('foo_suffix');
+			expect(row.computed).to.equal(101);
+			expect(row.concat).to.equal('foo_suffix');
 		}
 	});
 
@@ -334,17 +333,15 @@ describe('Statement#iterateWithLazyColumns()', function () {
 		expect(expectedB).to.equal(10);
 	});
 
-	it('should support both property and method access together', function () {
+	it('should support both property and index access together', function () {
 		const stmt = this.db.prepare("SELECT * FROM entries WHERE b = 1");
 		for (const row of stmt.iterateWithLazyColumns()) {
 			// Property access
 			expect(row.a).to.equal('foo');
 			expect(row.b).to.equal(1);
-			// Method access
+			// Index access
 			expect(row.getColumnByIndex(0)).to.equal('foo');
 			expect(row.getColumnByIndex(1)).to.equal(1);
-			expect(row.getColumnByName('a')).to.equal('foo');
-			expect(row.getColumnByName('b')).to.equal(1);
 			// columnCount
 			expect(row.columnCount).to.equal(5);
 		}
