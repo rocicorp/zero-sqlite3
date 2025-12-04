@@ -66,6 +66,7 @@ INIT(Statement::Init) {
 	SetPrototypeMethod(isolate, data, t, "columns", JS_columns);
 	SetPrototypeMethod(isolate, data, t, "scanStatusV2", JS_scanStatusV2);
 	SetPrototypeMethod(isolate, data, t, "scanStatusReset", JS_scanStatusReset);
+	SetPrototypeMethod(isolate, data, t, "explainQueryPlan", JS_explainQueryPlan);
 	SetPrototypeGetter(isolate, data, t, "busy", JS_busy);
 	return t->GetFunction(OnlyContext).ToLocalChecked();
 }
@@ -224,6 +225,90 @@ NODE_METHOD(Statement::JS_all) {
 		}
 	}
 	STATEMENT_THROW();
+#endif
+}
+
+NODE_METHOD(Statement::JS_explainQueryPlan) {
+	Statement* stmt = Unwrap<Statement>(info.This());
+	REQUIRE_STATEMENT_RETURNS_DATA();
+	sqlite3_stmt* handle = stmt->handle;
+	Database* db = stmt->db;
+	REQUIRE_DATABASE_OPEN(db->GetState());
+	REQUIRE_DATABASE_NOT_BUSY(db->GetState());
+	REQUIRE_STATEMENT_NOT_LOCKED(stmt);
+
+	// Binding is OPTIONAL: bind if params provided, skip if not
+	const bool pre_bound = stmt->bound;
+	bool did_bind = false;
+	if (!pre_bound && info.Length() > 0) {
+		STATEMENT_BIND(handle);
+		did_bind = true;
+	} else if (pre_bound && info.Length() > 0) {
+		return ThrowTypeError("This statement already has bound parameters");
+	}
+
+	db->GetState()->busy = true;
+	UseIsolate;
+	if (db->Log(isolate, handle)) {
+		db->GetState()->busy = false;
+		if (did_bind) { sqlite3_clear_bindings(handle); }
+		db->ThrowDatabaseError();
+		return;
+	}
+
+	UseContext;
+	const bool safe_ints = stmt->safe_ints;
+	const char mode = stmt->mode;
+
+#if !defined(NODE_MODULE_VERSION) || NODE_MODULE_VERSION < 127
+	bool js_error = false;
+	uint32_t row_count = 0;
+	v8::Local<v8::Array> result = v8::Array::New(isolate, 0);
+
+	while (sqlite3_step(handle) == SQLITE_ROW) {
+		if (row_count == 0xffffffff) { ThrowRangeError("Array overflow (too many rows returned)"); js_error = true; break; }
+		result->Set(ctx, row_count++, Data::GetRowJS(isolate, ctx, handle, safe_ints, mode)).FromJust();
+	}
+
+	if (sqlite3_reset(handle) == SQLITE_OK && !js_error) {
+		db->GetState()->busy = false;
+		if (did_bind) { sqlite3_clear_bindings(handle); }
+		info.GetReturnValue().Set(result);
+		return;
+	}
+	if (js_error) db->GetState()->was_js_error = true;
+	db->GetState()->busy = false;
+	if (did_bind) { sqlite3_clear_bindings(handle); }
+	db->ThrowDatabaseError();
+#else
+	v8::LocalVector<v8::Value> rows(isolate);
+	rows.reserve(8);
+
+	if (mode == Data::FLAT) {
+		RowBuilder rowBuilder(isolate, handle, safe_ints);
+		while (sqlite3_step(handle) == SQLITE_ROW) {
+			rows.emplace_back(rowBuilder.GetRowJS());
+		}
+	} else {
+		while (sqlite3_step(handle) == SQLITE_ROW) {
+			rows.emplace_back(Data::GetRowJS(isolate, ctx, handle, safe_ints, mode));
+		}
+	}
+
+	if (sqlite3_reset(handle) == SQLITE_OK) {
+		if (rows.size() > 0xffffffff) {
+			ThrowRangeError("Array overflow (too many rows returned)");
+			db->GetState()->was_js_error = true;
+		} else {
+			db->GetState()->busy = false;
+			if (did_bind) { sqlite3_clear_bindings(handle); }
+			info.GetReturnValue().Set(v8::Array::New(isolate, rows.data(), rows.size()));
+			return;
+		}
+	}
+	db->GetState()->busy = false;
+	if (did_bind) { sqlite3_clear_bindings(handle); }
+	db->ThrowDatabaseError();
 #endif
 }
 
