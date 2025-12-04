@@ -44,6 +44,7 @@ declare namespace BetterSqlite3 {
         scanStatusV2(idx: number, opcode: ScanStatOpcode.SQLITE_SCANSTAT_NCYCLE, resetFlag: number): number | undefined;
         scanStatusV2(idx: number, opcode: ScanStatOpcode, resetFlag: number): number | string | undefined;
         scanStatusReset(): this;
+        explainQueryPlan(...params: BindParameters | []): Result[];
     }
 
     interface ColumnDefinition {
