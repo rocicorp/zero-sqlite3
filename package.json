@@ -44,7 +44,7 @@
     "sqlite3": "^5.1.6"
   },
   "scripts": {
-    "install": "prebuild-install || node-gyp rebuild --release",
+    "install": "prebuild-install || node -e \"require('fs').existsSync('build/Release/better_sqlite3.node')||process.exit(1)\" || node-gyp rebuild --release",
     "build-release": "node-gyp rebuild --release",
     "build-debug": "node-gyp rebuild --debug",
     "test": "mocha --exit --slow=75 --timeout=5000",
