@@ -61,6 +61,11 @@ jobs:
       - run: npm install --ignore-scripts
       - run: npm run build-debug
       - run: npm test
+      - run: npm run build-release
+      - name: Test shell wrapper
+        run: |
+          echo "SELECT 'wrapper test';" | node shell.js
+          node shell.js --version || true
 
   test-bun:
     strategy:
@@ -90,6 +95,11 @@ jobs:
       - run: bun install --ignore-scripts
       - run: bun run build-debug
       - run: bun run test
+      - run: bun run build-release
+      - name: Test shell wrapper
+        run: |
+          echo "SELECT 'wrapper test';" | node shell.js
+          node shell.js --version || true
 
   publish:
     if: ${{ github.event_name == 'release' }}
