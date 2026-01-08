@@ -95,9 +95,6 @@ jobs:
     if: ${{ github.event_name == 'release' }}
     name: Publishing to NPM
     runs-on: ubuntu-22.04
-    permissions:
-      id-token: write # Required for OIDC trusted publishing
-      contents: read
     needs:
       - prebuild
       - prebuild-alpine
