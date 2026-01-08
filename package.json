@@ -1,6 +1,6 @@
 {
   "name": "@rocicorp/zero-sqlite3",
-  "version": "1.0.14",
+  "version": "1.0.15",
   "description": "better-sqlite3 on bedrock",
   "homepage": "https://github.com/rocicorp/zero-sqlite3",
   "author": "Rocicorp",
