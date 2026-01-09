@@ -62,7 +62,15 @@ jobs:
       - run: npm run build-debug
       - run: npm test
       - run: npm run build-release
-      - name: Test shell wrapper
+      - name: Test shell wrapper (Windows)
+        if: ${{ startsWith(matrix.os, 'windows') }}
+        shell: powershell
+        run: |
+          echo "SELECT 'wrapper test';" | node shell.js
+          node shell.js --version || echo "Version check failed"
+      - name: Test shell wrapper (Unix)
+        if: ${{ !startsWith(matrix.os, 'windows') }}
+        shell: bash
         run: |
           echo "SELECT 'wrapper test';" | node shell.js
           node shell.js --version || true
@@ -96,7 +104,15 @@ jobs:
       - run: bun run build-debug
       - run: bun run test
       - run: bun run build-release
-      - name: Test shell wrapper
+      - name: Test shell wrapper (Windows)
+        if: ${{ startsWith(matrix.os, 'windows') }}
+        shell: powershell
+        run: |
+          echo "SELECT 'wrapper test';" | node shell.js
+          node shell.js --version || echo "Version check failed"
+      - name: Test shell wrapper (Unix)
+        if: ${{ !startsWith(matrix.os, 'windows') }}
+        shell: bash
         run: |
           echo "SELECT 'wrapper test';" | node shell.js
           node shell.js --version || true
