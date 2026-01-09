@@ -66,15 +66,15 @@ jobs:
         if: ${{ startsWith(matrix.os, 'windows') }}
         shell: powershell
         run: |
-          echo "SELECT 'wrapper test';" | npx zero-sqlite3
-          npx zero-sqlite3 --version
+          echo "SELECT 'wrapper test';" | .\shell.ps1
+          .\shell.ps1 --version
           if ($LASTEXITCODE -ne 0) { echo "Version check failed" }
       - name: Test shell wrapper (Unix)
         if: ${{ !startsWith(matrix.os, 'windows') }}
         shell: bash
         run: |
-          echo "SELECT 'wrapper test';" | npx zero-sqlite3
-          npx zero-sqlite3 --version || true
+          echo "SELECT 'wrapper test';" | ./shell.ps1
+          ./shell.ps1 --version || true
 
   test-bun:
     strategy:
@@ -109,15 +109,15 @@ jobs:
         if: ${{ startsWith(matrix.os, 'windows') }}
         shell: powershell
         run: |
-          echo "SELECT 'wrapper test';" | bunx zero-sqlite3
-          bunx zero-sqlite3 --version
+          echo "SELECT 'wrapper test';" | .\shell.ps1
+          .\shell.ps1 --version
           if ($LASTEXITCODE -ne 0) { echo "Version check failed" }
       - name: Test shell wrapper (Unix)
         if: ${{ !startsWith(matrix.os, 'windows') }}
         shell: bash
         run: |
-          echo "SELECT 'wrapper test';" | bunx zero-sqlite3
-          bunx zero-sqlite3 --version || true
+          echo "SELECT 'wrapper test';" | ./shell.ps1
+          ./shell.ps1 --version || true
 
   publish:
     if: ${{ github.event_name == 'release' }}
