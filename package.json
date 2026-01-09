@@ -10,14 +10,14 @@
   },
   "main": "lib/index.js",
   "bin": {
-    "zero-sqlite3": "./shell.ps1"
+    "zero-sqlite3": "./shell.js"
   },
   "files": [
     "binding.gyp",
     "src/**/*.[ch]pp",
     "lib/**",
     "deps/**",
-    "shell.ps1"
+    "shell.js"
   ],
   "engines": {
     "node": "20.x || 22.x || 23.x || 24.x",

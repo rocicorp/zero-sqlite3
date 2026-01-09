@@ -66,15 +66,15 @@ jobs:
         if: ${{ startsWith(matrix.os, 'windows') }}
         shell: powershell
         run: |
-          echo "SELECT 'wrapper test';" | .\shell.ps1
-          .\shell.ps1 --version
+          echo "SELECT 'wrapper test';" | node shell.js
+          node shell.js --version
           if ($LASTEXITCODE -ne 0) { echo "Version check failed" }
       - name: Test shell wrapper (Unix)
         if: ${{ !startsWith(matrix.os, 'windows') }}
         shell: bash
         run: |
-          echo "SELECT 'wrapper test';" | ./shell.ps1
-          ./shell.ps1 --version || true
+          echo "SELECT 'wrapper test';" | node shell.js
+          node shell.js --version || true
 
   test-bun:
     strategy:
@@ -109,15 +109,15 @@ jobs:
         if: ${{ startsWith(matrix.os, 'windows') }}
         shell: powershell
         run: |
-          echo "SELECT 'wrapper test';" | .\shell.ps1
-          .\shell.ps1 --version
+          echo "SELECT 'wrapper test';" | node shell.js
+          node shell.js --version
           if ($LASTEXITCODE -ne 0) { echo "Version check failed" }
       - name: Test shell wrapper (Unix)
         if: ${{ !startsWith(matrix.os, 'windows') }}
         shell: bash
         run: |
-          echo "SELECT 'wrapper test';" | ./shell.ps1
-          ./shell.ps1 --version || true
+          echo "SELECT 'wrapper test';" | node shell.js
+          node shell.js --version || true
 
   publish:
     if: ${{ github.event_name == 'release' }}
