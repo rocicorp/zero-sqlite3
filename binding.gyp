@@ -63,7 +63,7 @@
             }],
             ['OS=="linux"', {
               'defines':   ['HAVE_READLINE=1'],
-              'libraries': ['-lreadline', '-lncurses'],
+              'libraries': ['-lreadline', '-lncurses', '-ldl'],
             }],
             ['OS=="mac"',  {
               'defines':   ['HAVE_EDITLINE=1'],
