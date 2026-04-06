@@ -46,7 +46,12 @@ class Backup;
 #include "objects/statement-iterator.cpp"
 
 NODE_MODULE_INIT(/* exports, context */) {
+    #if defined(NODE_MODULE_VERSION) && NODE_MODULE_VERSION >= 140
+    // Use Isolate::GetCurrent as stated in deprecation message within v8_context.h 13.9.72320122
+	v8::Isolate* isolate = v8::Isolate::GetCurrent();
+	#else
 	v8::Isolate* isolate = context->GetIsolate();
+	#endif
 	v8::HandleScope scope(isolate);
 	Addon::ConfigureURI();
 
@@ -62,7 +67,7 @@ NODE_MODULE_INIT(/* exports, context */) {
 	exports->Set(context, InternalizedFromLatin1(isolate, "Backup"), Backup::Init(isolate, data)).FromJust();
 	exports->Set(context, InternalizedFromLatin1(isolate, "setErrorConstructor"), v8::FunctionTemplate::New(isolate, Addon::JS_setErrorConstructor, data)->GetFunction(context).ToLocalChecked()).FromJust();
 
-	// Export SQLITE_SCANSTAT_* constants
+  // Export SQLITE_SCANSTAT_* constants
 	exports->Set(context, InternalizedFromLatin1(isolate, "SQLITE_SCANSTAT_NLOOP"), v8::Int32::New(isolate, SQLITE_SCANSTAT_NLOOP)).FromJust();
 	exports->Set(context, InternalizedFromLatin1(isolate, "SQLITE_SCANSTAT_NVISIT"), v8::Int32::New(isolate, SQLITE_SCANSTAT_NVISIT)).FromJust();
 	exports->Set(context, InternalizedFromLatin1(isolate, "SQLITE_SCANSTAT_EST"), v8::Int32::New(isolate, SQLITE_SCANSTAT_EST)).FromJust();

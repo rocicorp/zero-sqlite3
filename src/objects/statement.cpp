@@ -450,7 +450,7 @@ NODE_METHOD(Statement::JS_columns) {
 		);
 		columns.emplace_back(
 			v8::Object::New(isolate,
-				v8::Object::New(isolate)->GetPrototype(),
+				GET_PROTOTYPE(v8::Object::New(isolate)),
 				keys.data(),
 				values.data(),
 				keys.size()
@@ -546,6 +546,6 @@ NODE_METHOD(Statement::JS_scanStatusReset) {
 }
 
 NODE_GETTER(Statement::JS_busy) {
-	Statement* stmt = Unwrap<Statement>(info.This());
+	Statement* stmt = Unwrap<Statement>(PROPERTY_HOLDER(info));
 	info.GetReturnValue().Set(stmt->alive && stmt->locked);
 }
