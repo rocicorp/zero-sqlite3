@@ -142,6 +142,8 @@ jobs:
       - name: Upgrade npm for OIDC support
         run: npm install -g npm@latest
       - run: npm publish --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
   prebuild:
     if: ${{ github.event_name == 'release' }}
