@@ -132,6 +132,7 @@ INIT(Database::Init) {
 	SetPrototypeMethod(isolate, data, t, "function", JS_function);
 	SetPrototypeMethod(isolate, data, t, "aggregate", JS_aggregate);
 	SetPrototypeMethod(isolate, data, t, "table", JS_table);
+	SetPrototypeMethod(isolate, data, t, "loadExtension", JS_loadExtension);
 	SetPrototypeMethod(isolate, data, t, "close", JS_close);
 	SetPrototypeMethod(isolate, data, t, "defaultSafeIntegers", JS_defaultSafeIntegers);
 	SetPrototypeMethod(isolate, data, t, "unsafeMode", JS_unsafeMode);
@@ -171,7 +172,9 @@ NODE_METHOD(Database::JS_new) {
 	sqlite3_busy_timeout(db_handle, timeout);
 	sqlite3_limit(db_handle, SQLITE_LIMIT_LENGTH, MAX_BUFFER_SIZE < MAX_STRING_SIZE ? MAX_BUFFER_SIZE : MAX_STRING_SIZE);
 	sqlite3_limit(db_handle, SQLITE_LIMIT_SQL_LENGTH, MAX_STRING_SIZE);
-	int status = sqlite3_db_config(db_handle, SQLITE_DBCONFIG_DEFENSIVE, 1, NULL);
+	int status = sqlite3_db_config(db_handle, SQLITE_DBCONFIG_ENABLE_LOAD_EXTENSION, 1, NULL);
+	assert(status == SQLITE_OK);
+	status = sqlite3_db_config(db_handle, SQLITE_DBCONFIG_DEFENSIVE, 1, NULL);
 	assert(status == SQLITE_OK); ((void)status);
 
 	if (node::Buffer::HasInstance(buffer) && !Deserialize(buffer.As<v8::Object>(), addon, db_handle, readonly)) {
@@ -204,6 +207,28 @@ NODE_METHOD(Database::JS_prepare) {
 	v8::MaybeLocal<v8::Object> maybeStatement = c->NewInstance(OnlyContext, 0, NULL);
 	addon->privileged_info = NULL;
 	if (!maybeStatement.IsEmpty()) info.GetReturnValue().Set(maybeStatement.ToLocalChecked());
+}
+
+NODE_METHOD(Database::JS_loadExtension) {
+	Database* db = Unwrap<Database>(info.This());
+	REQUIRE_ARGUMENT_STRING(first, v8::Local<v8::String> filename);
+	v8::Local<v8::String> entryPoint;
+	if (info.Length() > 1) { REQUIRE_ARGUMENT_STRING(second, entryPoint); }
+	REQUIRE_DATABASE_OPEN(db);
+	REQUIRE_DATABASE_NOT_BUSY(db);
+	REQUIRE_DATABASE_NO_ITERATORS(db);
+	UseIsolate;
+	char* error;
+	int status = sqlite3_load_extension(
+		db->db_handle,
+		*v8::String::Utf8Value(isolate, filename),
+		entryPoint.IsEmpty() ? NULL : *v8::String::Utf8Value(isolate, entryPoint),
+		&error
+	);
+	if (status != SQLITE_OK) {
+		ThrowSqliteError(db->addon, error, status);
+	}
+	sqlite3_free(error);
 }
 
 NODE_METHOD(Database::JS_exec) {
