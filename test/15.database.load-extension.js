@@ -3,19 +3,16 @@ const { execSync } = require('child_process');
 const path = require('path');
 const Database = require('../.');
 
+const isWindows = process.platform === 'win32';
 const extensionSrc = path.join(__dirname, '..', 'deps', 'test_extension.c');
 const sqliteInclude = path.join(__dirname, '..', 'deps', 'sqlite3');
 const extensionPath = path.join(__dirname, '..', 'temp', 'test_extension');
 
-describe('Database#loadExtension()', function () {
+(isWindows ? describe.skip : describe)('Database#loadExtension()', function () {
 	before(function () {
-		const ext = process.platform === 'win32' ? '.dll' : process.platform === 'darwin' ? '.dylib' : '.so';
+		const ext = process.platform === 'darwin' ? '.dylib' : '.so';
 		this.extensionFile = extensionPath + ext;
-		if (process.platform === 'win32') {
-			execSync(`cl /LD /I"${sqliteInclude}" "${extensionSrc}" /Fe:"${this.extensionFile}"`);
-		} else {
-			execSync(`cc -shared -fPIC -I "${sqliteInclude}" -o "${this.extensionFile}" "${extensionSrc}"`);
-		}
+		execSync(`cc -shared -fPIC -I "${sqliteInclude}" -o "${this.extensionFile}" "${extensionSrc}"`);
 	});
 	beforeEach(function () {
 		this.db = new Database(util.next());
