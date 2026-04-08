@@ -96,7 +96,7 @@ declare namespace BetterSqlite3 {
                 result?: ((total: T) => unknown) | undefined;
             },
         ): this;
-        loadExtension(path: string): this;
+        loadExtension(path: string, entryPoint?: string): this;
         close(): this;
         defaultSafeIntegers(toggleState?: boolean): this;
         backup(destinationFile: string, options?: Database.BackupOptions): Promise<Database.BackupMetadata>;
