@@ -57,7 +57,16 @@
             # This is currently required by better-sqlite3.
             'SQLITE_ENABLE_COLUMN_METADATA',
           ],
-        }]
+        }],
+        # Unicode-aware LIKE/upper()/lower() via SQLite's bundled ICU extension,
+        # statically linked so the prebuilt binaries stay self-contained.
+        # Not enabled on Windows yet: static ICU there means building it from
+        # source (vcpkg), which is impractically slow in CI. Windows therefore
+        # keeps SQLite's ASCII-only LIKE for now.
+        ['OS != "win"', {
+          'defines': ['SQLITE_ENABLE_ICU'],
+          'include_dirs': ['<!@(node icu.js include)'],
+        }],
       ],
       'configurations': {
         'Debug': {
