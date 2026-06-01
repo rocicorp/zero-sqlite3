@@ -23,13 +23,15 @@
 // Discovery order: pkg-config (Linux/Alpine) -> Homebrew icu4c (macOS) ->
 // common system locations. Set ICU_ROOT to override (expects ICU_ROOT/lib and
 // ICU_ROOT/include).
+//
+// ICU is not enabled on Windows (see deps/sqlite3.gyp), so this script only
+// ever runs on macOS and Linux.
 // ===
 
 const {execSync} = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
-const isWin = process.platform === 'win32';
 const isMac = process.platform === 'darwin';
 
 function run(cmd) {
@@ -81,17 +83,13 @@ function locate() {
   return {libDir, includeDir};
 }
 
-// ICU static archives in dependency order (i18n -> uc -> data). Windows ICU
-// uses different archive names.
-const ARCHIVE_NAMES = isWin
-  ? ['icuin', 'icuuc', 'icudt']
-  : ['libicui18n', 'libicuuc', 'libicudata'];
+// ICU static archives, in dependency order (i18n -> uc -> data).
+const ARCHIVE_NAMES = ['libicui18n', 'libicuuc', 'libicudata'];
 
 function libsOutput(loc) {
-  const ext = isWin ? '.lib' : '.a';
   const out = [];
   for (const name of ARCHIVE_NAMES) {
-    const full = loc.libDir && path.join(loc.libDir, name + ext);
+    const full = loc.libDir && path.join(loc.libDir, name + '.a');
     if (full && fs.existsSync(full)) {
       out.push(full);
     } else {
@@ -99,16 +97,14 @@ function libsOutput(loc) {
       // static archives still builds (dynamically). Prebuild CI installs the
       // static libs, so this path is not taken for shipped binaries.
       process.stderr.write(
-        `deps/icu.js: static archive ${name}${ext} not found in ${loc.libDir || '(unknown)'}; ` +
+        `deps/icu.js: static archive ${name}.a not found in ${loc.libDir || '(unknown)'}; ` +
           `falling back to dynamic linking for ${name}\n`,
       );
-      out.push(isWin ? name + '.lib' : '-l' + name.replace(/^lib/, ''));
+      out.push('-l' + name.replace(/^lib/, ''));
     }
   }
   // C++ runtime + system libraries required by ICU's (C++) static archives.
-  if (isWin) {
-    out.push('advapi32.lib');
-  } else if (isMac) {
+  if (isMac) {
     out.push('-lc++');
   } else {
     out.push('-lstdc++', '-lm', '-lpthread', '-ldl');
