@@ -46,6 +46,19 @@ function firstDir(candidates) {
   return candidates.find(p => p && fs.existsSync(p)) || '';
 }
 
+// An include dir is only useful if the ICU headers are actually under it
+// (<dir>/unicode/utypes.h). Validating this lets us reject a misconfigured
+// pkg-config .pc and fall through to another discovery method, instead of
+// emitting a bogus path that fails later with a confusing missing-header error.
+function hasIcuHeaders(dir) {
+  return !!dir && fs.existsSync(path.join(dir, 'unicode', 'utypes.h'));
+}
+
+function fail(message) {
+  process.stderr.write(`deps/icu.js: ${message}\n`);
+  process.exit(1);
+}
+
 // Locate the ICU lib and include directories. Returns {libDir, includeDir}.
 function locate() {
   if (process.env.ICU_ROOT) {
@@ -54,9 +67,10 @@ function locate() {
   }
 
   // pkg-config (Debian's libicu-dev and Alpine's icu-dev ship icu-i18n.pc).
+  // Require both the lib dir and the actual ICU headers before trusting it.
   const pcLibDir = run('pkg-config --variable=libdir icu-i18n');
   const pcIncDir = run('pkg-config --variable=includedir icu-i18n');
-  if (pcLibDir && fs.existsSync(pcLibDir)) {
+  if (pcLibDir && fs.existsSync(pcLibDir) && hasIcuHeaders(pcIncDir)) {
     return {libDir: pcLibDir, includeDir: pcIncDir};
   }
 
@@ -79,7 +93,7 @@ function locate() {
     '/usr/lib',
     '/usr/local/lib',
   ]);
-  const includeDir = firstDir(['/usr/include', '/usr/local/include']);
+  const includeDir = ['/usr/include', '/usr/local/include'].find(hasIcuHeaders) || '';
   return {libDir, includeDir};
 }
 
@@ -92,15 +106,25 @@ function libsOutput(loc) {
     const full = loc.libDir && path.join(loc.libDir, name + '.a');
     if (full && fs.existsSync(full)) {
       out.push(full);
-    } else {
-      // Fall back to a normal library reference so local dev without the
-      // static archives still builds (dynamically). Prebuild CI installs the
-      // static libs, so this path is not taken for shipped binaries.
+    } else if (process.env.ICU_ALLOW_DYNAMIC === '1') {
+      // Opt-in dynamic fallback for local dev on machines without the static
+      // archives. Never used for shipped prebuilds, which must be self-contained.
       process.stderr.write(
         `deps/icu.js: static archive ${name}.a not found in ${loc.libDir || '(unknown)'}; ` +
-          `falling back to dynamic linking for ${name}\n`,
+          `ICU_ALLOW_DYNAMIC=1 set, falling back to dynamic -l${name.replace(/^lib/, '')}\n`,
       );
       out.push('-l' + name.replace(/^lib/, ''));
+    } else {
+      // Refuse to silently produce a dynamically-linked binary: zero-cache ships
+      // these prebuilds onto runtime images (e.g. Alpine) that have no ICU, where
+      // a dynamic ICU dependency would only fail at load time.
+      fail(
+        `static ICU archive ${name}.a not found in ${loc.libDir || '(unknown library dir)'}.\n` +
+          `  Prebuilt binaries must statically link ICU to stay self-contained, so the build is\n` +
+          `  aborting rather than linking ICU dynamically. Install the static ICU libraries\n` +
+          `  (libicu-dev on Debian, icu-dev + icu-static on Alpine, icu4c via Homebrew on macOS),\n` +
+          `  or set ICU_ALLOW_DYNAMIC=1 to allow a dynamic fallback for local development.`,
+      );
     }
   }
   // C++ runtime + system libraries required by ICU's (C++) static archives.
@@ -116,7 +140,14 @@ const mode = process.argv[2];
 const loc = locate();
 
 if (mode === 'include') {
-  process.stdout.write(loc.includeDir || '');
+  if (!hasIcuHeaders(loc.includeDir)) {
+    fail(
+      `could not find the ICU headers (unicode/utypes.h) in ${loc.includeDir || '(unknown include dir)'}.\n` +
+        `  Install the ICU development package (libicu-dev on Debian, icu-dev on Alpine,\n` +
+        `  icu4c via Homebrew on macOS), or set ICU_ROOT to an ICU install prefix.`,
+    );
+  }
+  process.stdout.write(loc.includeDir);
 } else {
   process.stdout.write(libsOutput(loc).join('\n'));
 }
