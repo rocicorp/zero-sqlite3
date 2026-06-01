@@ -20,7 +20,15 @@
 
 CHECKIN="0e862bc9ed7aa9ae"
 
-# Defines below are sorted alphabetically
+# Defines below are sorted alphabetically.
+#
+# Note: SQLITE_ENABLE_ICU is intentionally NOT listed here. These defines are
+# applied unconditionally on every platform (they become defines.gypi and are
+# passed to every compile), but ICU is only available on non-Windows builds.
+# It is therefore defined conditionally (OS != "win") in deps/sqlite3.gyp
+# instead. The ICU extension code already ships in the amalgamation guarded by
+# #ifdef SQLITE_ENABLE_ICU, so it does not need to be set when generating
+# sqlite3.c here.
 DEFINES="
 HAVE_INT16_T=1
 HAVE_INT32_T=1
