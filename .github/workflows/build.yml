@@ -46,18 +46,18 @@ jobs:
       - if: ${{ startsWith(matrix.os, 'windows') }}
         run: pip.exe install setuptools
       - if: ${{ startsWith(matrix.os, 'macos') }}
-        run: brew install python-setuptools
+        run: brew install python-setuptools icu4c
       - if: ${{ !startsWith(matrix.os, 'windows') && !startsWith(matrix.os, 'macos') }}
         run: python3 -m pip install setuptools
       - if: ${{ startsWith(matrix.os, 'ubuntu') && matrix.node < 25 }}
         run: |
           sudo apt update
-          sudo apt install -y gcc-10 g++-10 libreadline-dev libncurses5-dev
+          sudo apt install -y gcc-10 g++-10 libreadline-dev libncurses5-dev libicu-dev
           sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-10 100 --slave /usr/bin/g++ g++ /usr/bin/g++-10 --slave /usr/bin/gcov gcov /usr/bin/gcov-10
       - if: ${{ startsWith(matrix.os, 'ubuntu') && matrix.node >= 25 }}
         run: |
           sudo apt update
-          sudo apt install -y gcc-11 g++-11 libreadline-dev libncurses5-dev
+          sudo apt install -y gcc-11 g++-11 libreadline-dev libncurses5-dev libicu-dev
           sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-11 100 --slave /usr/bin/g++ g++ /usr/bin/g++-11 --slave /usr/bin/gcov gcov /usr/bin/gcov-11
       - run: npm install --ignore-scripts
       - run: npm run build-debug
@@ -93,13 +93,13 @@ jobs:
         with:
           bun-version: ${{ matrix.bun }}
       - if: ${{ startsWith(matrix.os, 'macos') }}
-        run: brew install python-setuptools
+        run: brew install python-setuptools icu4c
       - if: ${{ !startsWith(matrix.os, 'macos') }}
         run: python3 -m pip install setuptools
       - if: ${{ startsWith(matrix.os, 'ubuntu') }}
         run: |
           sudo apt update
-          sudo apt install -y gcc-10 g++-10 libreadline-dev libncurses5-dev
+          sudo apt install -y gcc-10 g++-10 libreadline-dev libncurses5-dev libicu-dev
           sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-10 100 --slave /usr/bin/g++ g++ /usr/bin/g++-10 --slave /usr/bin/gcov gcov /usr/bin/gcov-10
       - run: bun install --ignore-scripts
       - run: bun run build-debug
@@ -163,7 +163,7 @@ jobs:
       - if: ${{ startsWith(matrix.os, 'windows') }}
         run: pip.exe install setuptools
       - if: ${{ startsWith(matrix.os, 'macos') }}
-        run: brew install python-setuptools
+        run: brew install python-setuptools icu4c
       - run: npm install --ignore-scripts
       - run: ${{ env.NODE_BUILD_CMD_LEGACY }} -u ${{ secrets.GITHUB_TOKEN }}
       - run: ${{ env.NODE_BUILD_CMD_MODERN }} -u ${{ secrets.GITHUB_TOKEN }}
@@ -182,6 +182,7 @@ jobs:
     needs: test
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - run: apt-get update && apt-get install -y libicu-dev
       - run: npm install --ignore-scripts
       - run: ${{ env.NODE_BUILD_CMD_LEGACY }} -u ${{ secrets.GITHUB_TOKEN }}
 
@@ -193,6 +194,7 @@ jobs:
     needs: test
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - run: apt-get update && apt-get install -y libicu-dev
       - run: npm install --ignore-scripts
       - run: ${{ env.NODE_BUILD_CMD_MODERN }} -u ${{ secrets.GITHUB_TOKEN }}
 
@@ -204,7 +206,7 @@ jobs:
     needs: test
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-      - run: apk add build-base git python3 py3-setuptools libstdc++ readline-dev ncurses-dev --update-cache
+      - run: apk add build-base git python3 py3-setuptools libstdc++ readline-dev ncurses-dev icu-dev icu-static --update-cache
       - run: npm install --ignore-scripts
       - run: ${{ env.NODE_BUILD_CMD_LEGACY }} -u ${{ secrets.GITHUB_TOKEN }}
       - run: ${{ env.NODE_BUILD_CMD_MODERN }} -u ${{ secrets.GITHUB_TOKEN }}
@@ -225,7 +227,7 @@ jobs:
       - uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3
       - run: |
           docker run --rm -v $(pwd):/tmp/project --entrypoint /bin/sh --platform linux/${{ matrix.arch }} node:20-alpine -c "\
-          apk add build-base git python3 py3-setuptools libstdc++ readline-dev ncurses-dev --update-cache && \
+          apk add build-base git python3 py3-setuptools libstdc++ readline-dev ncurses-dev icu-dev icu-static --update-cache && \
           cd /tmp/project && \
           npm install --ignore-scripts && \
           ${{ env.NODE_BUILD_CMD_LEGACY }} -u ${{ secrets.GITHUB_TOKEN }} && \
@@ -247,6 +249,7 @@ jobs:
       - uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3
       - run: |
           docker run --rm -v $(pwd):/tmp/project --entrypoint /bin/sh --platform linux/${{ matrix.arch }} node:20-bullseye -c "\
+          apt-get update && apt-get install -y libicu-dev && \
           cd /tmp/project && \
           npm install --ignore-scripts && \
           ${{ env.NODE_BUILD_CMD_LEGACY }} -u ${{ secrets.GITHUB_TOKEN }}"
@@ -267,6 +270,7 @@ jobs:
       - uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3
       - run: |
           docker run --rm -v $(pwd):/tmp/project --entrypoint /bin/sh --platform linux/${{ matrix.arch }} node:20-bookworm -c "\
+          apt-get update && apt-get install -y libicu-dev && \
           cd /tmp/project && \
           npm install --ignore-scripts && \
           ${{ env.NODE_BUILD_CMD_MODERN }} -u ${{ secrets.GITHUB_TOKEN }}"
