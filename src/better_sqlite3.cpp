@@ -44,6 +44,7 @@ class Backup;
 #include "objects/statement.cpp"
 #include "objects/database.cpp"
 #include "objects/statement-iterator.cpp"
+#include "util/unicode_case.cpp"
 
 NODE_MODULE_INIT(/* exports, context */) {
     #if defined(NODE_MODULE_VERSION) && NODE_MODULE_VERSION >= 140
@@ -54,6 +55,14 @@ NODE_MODULE_INIT(/* exports, context */) {
 	#endif
 	v8::HandleScope scope(isolate);
 	Addon::ConfigureURI();
+
+	// Register Unicode-aware lower()/upper() on every connection (replaces ICU).
+	// sqlite3_auto_extension is process-global, so guard against repeated
+	// NODE_MODULE_INIT calls (e.g. worker threads) registering it more than once.
+	static std::once_flag unicode_case_once;
+	std::call_once(unicode_case_once, []() {
+		sqlite3_auto_extension((void (*)(void))zeroRegisterUnicodeCase);
+	});
 
 	// Initialize addon instance.
 	Addon* addon = new Addon(isolate);

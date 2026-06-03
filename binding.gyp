@@ -24,12 +24,6 @@
         },
       },
       'conditions': [
-        # ICU is statically linked into the SQLite static library on
-        # non-Windows; the final .node must resolve its ICU symbols. (See
-        # deps/sqlite3.gyp for why Windows is excluded.)
-        ['OS != "win"', {
-          'libraries': ['<!@(node deps/icu.js libs)'],
-        }],
         ['OS=="linux"', {
           'ldflags': [
             '-Wl,-Bsymbolic',
@@ -74,13 +68,6 @@
             ['OS=="mac"',  {
               'defines':   ['HAVE_EDITLINE=1'],
               'libraries': ['-ledit', '-lncurses'],
-            }],
-            # Unicode-aware LIKE/upper()/lower() via the bundled ICU extension,
-            # statically linked. Excluded on Windows (see deps/sqlite3.gyp).
-            ['OS != "win"', {
-              'defines':   ['SQLITE_ENABLE_ICU'],
-              'include_dirs': ['<!@(node deps/icu.js include)'],
-              'libraries': ['<!@(node deps/icu.js libs)'],
             }],
           ],
           'configurations': {
