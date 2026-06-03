@@ -220,20 +220,27 @@ jobs:
   # free for public repos) instead of QEMU emulation. This is faster and avoids
   # the QEMU "illegal instruction" crashes seen with emulated musl/arm64. 32-bit
   # arm (arm/v7) is no longer built — Zero does not support it.
+  # Alpine (musl) arm64: GitHub doesn't support JavaScript actions inside an
+  # Alpine *job container* on arm64 runners (only x64), so actions/checkout
+  # fails there. Instead check out on the glibc arm64 host and run the build
+  # inside `docker run node:20-alpine` — native on the arm64 runner, so still no
+  # QEMU.
   prebuild-alpine-arm64:
     if: ${{ github.event_name == 'release' }}
     permissions:
       contents: write # prebuild -u uploads the .node assets to the GitHub release
     name: Prebuild on alpine (arm64)
     runs-on: ubuntu-24.04-arm
-    container: node:20-alpine
     needs: test
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-      - run: apk add build-base git python3 py3-setuptools libstdc++ readline-dev ncurses-dev icu-dev --update-cache
-      - run: npm install --ignore-scripts
-      - run: ${{ env.NODE_BUILD_CMD_LEGACY }} -u ${{ secrets.GITHUB_TOKEN }}
-      - run: ${{ env.NODE_BUILD_CMD_MODERN }} -u ${{ secrets.GITHUB_TOKEN }}
+      - run: |
+          docker run --rm -v "$(pwd)":/tmp/project --entrypoint /bin/sh node:20-alpine -c "\
+          apk add build-base git python3 py3-setuptools libstdc++ readline-dev ncurses-dev icu-dev --update-cache && \
+          cd /tmp/project && \
+          npm install --ignore-scripts && \
+          ${{ env.NODE_BUILD_CMD_LEGACY }} -u ${{ secrets.GITHUB_TOKEN }} && \
+          ${{ env.NODE_BUILD_CMD_MODERN }} -u ${{ secrets.GITHUB_TOKEN }}"
 
   prebuild-linux-arm64:
     if: ${{ github.event_name == 'release' }}
