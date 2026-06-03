@@ -5,10 +5,11 @@
 // case conversion. Registered as an auto-extension, overriding SQLite's
 // ASCII-only built-in lower()/upper() on every connection.
 //
-// Scope: context-free case mapping (the common case). It does not implement
-// context-sensitive rules such as Greek final sigma; JavaScript's toLowerCase
-// applies those, so a word-final Σ can differ. The zqlite ILIKE parity test
-// guards the cases Zero relies on.
+// This matches JavaScript's default (locale-independent) case conversion for
+// all input: per-code-point full mappings plus the one context-sensitive rule
+// that algorithm applies — Greek final sigma (see LowerSigma). Locale-specific
+// rules (Turkish dotless i, Lithuanian) are not applied, and neither does
+// String.prototype.toLowerCase, so the two stay consistent.
 
 #include "unicode_case_data.h"
 
@@ -71,7 +72,47 @@ static const ZeroCaseMap* Lookup(const ZeroCaseMap* map, int len, unsigned int c
 	return NULL;
 }
 
-static void Apply(sqlite3_context* ctx, sqlite3_value* arg, const ZeroCaseMap* map, int len) {
+// Whether `cp` falls in one of the sorted, non-overlapping [lo, hi] ranges.
+static int InRanges(const ZeroRange* r, int len, unsigned int cp) {
+	int lo = 0, hi = len - 1;
+	while (lo <= hi) {
+		int mid = (lo + hi) >> 1;
+		if (cp < r[mid].lo) hi = mid - 1;
+		else if (cp > r[mid].hi) lo = mid + 1;
+		else return 1;
+	}
+	return 0;
+}
+
+static int IsCased(unsigned int cp) {
+	return InRanges(kZeroCased, kZeroCasedLen, cp);
+}
+static int IsCaseIgnorable(unsigned int cp) {
+	return InRanges(kZeroCaseIgnorable, kZeroCaseIgnorableLen, cp);
+}
+
+static const unsigned int kCapitalSigma = 0x3A3u; // Σ
+static const unsigned int kSmallSigma = 0x3C3u;   // σ
+static const unsigned int kFinalSigma = 0x3C2u;   // ς
+
+// Lowercasing Σ is the one context-sensitive rule in the default (locale-
+// independent) algorithm that JS toLowerCase applies: Σ -> ς when it is preceded
+// by a cased letter (ignoring case-ignorable chars) and not followed by one;
+// otherwise Σ -> σ. `prevCased` is whether the last non-ignorable input char was
+// cased; `in`/`n`/`after` scan the input following the Σ.
+static unsigned int LowerSigma(const unsigned char* in, int n, int after, int prevCased) {
+	int followedByCased = 0;
+	int j = after;
+	while (j < n) {
+		unsigned int c = Utf8Decode(in, n, &j);
+		if (IsCaseIgnorable(c)) continue;
+		followedByCased = IsCased(c);
+		break;
+	}
+	return (prevCased && !followedByCased) ? kFinalSigma : kSmallSigma;
+}
+
+static void Apply(sqlite3_context* ctx, sqlite3_value* arg, const ZeroCaseMap* map, int len, int lower) {
 	if (sqlite3_value_type(arg) == SQLITE_NULL) {
 		sqlite3_result_null(ctx);
 		return;
@@ -92,6 +133,7 @@ static void Apply(sqlite3_context* ctx, sqlite3_value* arg, const ZeroCaseMap* m
 	}
 	int outn = 0;
 	int i = 0;
+	int prevCased = 0; // was the last non-case-ignorable input char cased?
 	while (i < n) {
 		unsigned int cp = Utf8Decode(in, n, &i);
 		// Reserve room for up to 3 mapped code points (4 bytes each).
@@ -105,24 +147,30 @@ static void Apply(sqlite3_context* ctx, sqlite3_value* arg, const ZeroCaseMap* m
 			}
 			out = grown;
 		}
-		const ZeroCaseMap* m = Lookup(map, len, cp);
-		if (m) {
-			for (int k = 0; k < m->n; k++) outn += Utf8Encode(m->to[k], out + outn);
+		if (lower && cp == kCapitalSigma) {
+			outn += Utf8Encode(LowerSigma(in, n, i, prevCased), out + outn);
 		} else {
-			outn += Utf8Encode(cp, out + outn);
+			const ZeroCaseMap* m = Lookup(map, len, cp);
+			if (m) {
+				for (int k = 0; k < m->n; k++) outn += Utf8Encode(m->to[k], out + outn);
+			} else {
+				outn += Utf8Encode(cp, out + outn);
+			}
 		}
+		// Context for final-sigma is evaluated on the original input.
+		if (!IsCaseIgnorable(cp)) prevCased = IsCased(cp);
 	}
 	sqlite3_result_text(ctx, out, outn, sqlite3_free);
 }
 
 static void LowerFunc(sqlite3_context* ctx, int argc, sqlite3_value** argv) {
 	(void)argc;
-	Apply(ctx, argv[0], kZeroLowerMap, kZeroLowerMapLen);
+	Apply(ctx, argv[0], kZeroLowerMap, kZeroLowerMapLen, 1);
 }
 
 static void UpperFunc(sqlite3_context* ctx, int argc, sqlite3_value** argv) {
 	(void)argc;
-	Apply(ctx, argv[0], kZeroUpperMap, kZeroUpperMapLen);
+	Apply(ctx, argv[0], kZeroUpperMap, kZeroUpperMapLen, 0);
 }
 
 } // namespace UnicodeCase

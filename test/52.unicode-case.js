@@ -40,18 +40,53 @@ describe('Unicode lower()/upper()', function () {
 			'MÜLLER',
 			'café',
 			'ПРИВЕТ',
-			'ΑΒΓ', // Greek (no word-final sigma; see note below)
 			'İ', // dotted capital I -> 'i̇' (1 -> 2)
 			'ǅ', // titlecase digraph
 			'Ⅻ', // roman numeral
 			'ẞ', // capital sharp s -> 'ß'
 			'straße',
 			'a1!ä',
+			'𐐔𐐯𐑅𐐨𐑉𐐯𐐻', // Deseret (astral plane)
 		];
 		for (const s of samples) {
 			expect(lower(this.db, s), `lower(${s})`).to.equal(s.toLowerCase());
 			expect(upper(this.db, s), `upper(${s})`).to.equal(s.toUpperCase());
 		}
+	});
+
+	// Greek capital sigma lowercases to ς word-finally, σ otherwise — the one
+	// context rule JS toLowerCase applies. We implement it (LowerSigma).
+	it('handles the Greek final-sigma rule like JavaScript', function () {
+		for (const s of [
+			'ΟΔΟΣ', // -> οδος  (final)
+			'ΟΔΟΣΟ', // -> οδοσο (followed by a cased letter)
+			'Σ', // -> σ      (not preceded by a cased letter)
+			'ΟΔΟΣ.', // -> οδος. (trailing case-ignorable '.')
+			'ΟΔΟΣ ΟΔΟΣ', // both final
+			'ΣΙΓΜΑ',
+		]) {
+			expect(lower(this.db, s), `lower(${s})`).to.equal(s.toLowerCase());
+		}
+	});
+
+	// Exhaustive guard: lower()/upper() must equal JS for every code point.
+	// Code points are joined with spaces (neither cased nor case-ignorable) so
+	// each is isolated for both mapping and the final-sigma context check.
+	it('matches JavaScript across every code point', function () {
+		let buf = [];
+		const flush = () => {
+			if (!buf.length) return;
+			const s = buf.join(' ');
+			expect(lower(this.db, s)).to.equal(s.toLowerCase());
+			expect(upper(this.db, s)).to.equal(s.toUpperCase());
+			buf = [];
+		};
+		for (let cp = 0; cp <= 0x10ffff; cp++) {
+			if (cp >= 0xd800 && cp <= 0xdfff) continue; // lone surrogates
+			buf.push(String.fromCodePoint(cp));
+			if (buf.length >= 4000) flush();
+		}
+		flush();
 	});
 
 	it('drives Unicode-insensitive ILIKE via lower()', function () {
@@ -69,7 +104,8 @@ describe('Unicode lower()/upper()', function () {
 	});
 });
 
-// Note: case *folding* (ß <-> ss) and context rules (Greek word-final sigma) are
-// intentionally not implemented — only context-free case mapping, matching JS
-// toLowerCase/toUpperCase. The cross-backend parity test in the zero repo guards
-// the behavior Zero actually depends on.
+// Note: this is case *mapping* (matching JS toLowerCase/toUpperCase), not case
+// *folding* — e.g. upper('ß') is 'SS' but lower() never maps 'ß' to 'ss'. That
+// matches how zqlite compiles ILIKE (lower() on both sides) and the client-side
+// IVM matcher. Locale-specific casing (Turkish dotless i, Lithuanian) is not
+// applied, consistent with String.prototype.toLowerCase.
