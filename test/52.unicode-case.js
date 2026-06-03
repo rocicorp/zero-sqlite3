@@ -105,30 +105,6 @@ describe('Unicode lower()/upper()', function () {
 		flush();
 	});
 
-	// The table is anchored to the Node LTS (currently 24). On a runtime whose
-	// Unicode matches it, the committed header must equal a fresh regeneration —
-	// catching a hand-edited table or a forgotten regenerate after a Unicode bump.
-	it('committed case table is up to date', function () {
-		const fs = require('fs');
-		const path = require('path');
-		const {execFileSync} = require('child_process');
-		const root = path.join(__dirname, '..');
-		const committed = fs.readFileSync(
-			path.join(root, 'src', 'util', 'unicode_case_data.h'),
-			'utf8',
-		);
-		const tableUnicode = (committed.match(/Unicode ([\d.]+)/) || [])[1];
-		if (tableUnicode !== process.versions.unicode) {
-			this.skip(); // generator would emit a different Unicode version
-		}
-		const regenerated = execFileSync(
-			process.execPath,
-			[path.join(root, 'deps', 'gen-unicode-case.mjs')],
-			{encoding: 'utf8', maxBuffer: 64 * 1024 * 1024},
-		);
-		expect(regenerated).to.equal(committed);
-	});
-
 	it('drives Unicode-insensitive ILIKE via lower()', function () {
 		// This is how zqlite compiles ILIKE.
 		const ilike = (a, b) =>

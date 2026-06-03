@@ -8,8 +8,9 @@
 // client-side IVM matcher (toLowerCase) and the zqlite replica rely on. Case
 // data is stable across Unicode versions, so this only needs regenerating on a
 // deliberate Unicode bump. Run it with the active Node LTS (currently 24,
-// Unicode 17) so the snapshot tracks a stable, widely-deployed version; CI
-// verifies the committed header matches a fresh run on that version.
+// Unicode 17) so the snapshot tracks a stable, widely-deployed version;
+// test/52.unicode-case.js then exhaustively checks the functions against JS on
+// any runtime whose Unicode matches.
 //
 // Usage: node deps/gen-unicode-case.mjs > src/util/unicode_case_data.h
 
