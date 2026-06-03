@@ -214,7 +214,7 @@ jobs:
     needs: test
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-      - run: apk add build-base git python3 py3-setuptools libstdc++ readline-dev ncurses-dev icu-dev icu-static --update-cache
+      - run: apk add build-base git python3 py3-setuptools libstdc++ readline-dev ncurses-dev icu-dev --update-cache
       - run: npm install --ignore-scripts
       - run: ${{ env.NODE_BUILD_CMD_LEGACY }} -u ${{ secrets.GITHUB_TOKEN }}
       - run: ${{ env.NODE_BUILD_CMD_MODERN }} -u ${{ secrets.GITHUB_TOKEN }}
@@ -237,7 +237,7 @@ jobs:
       - uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3
       - run: |
           docker run --rm -v $(pwd):/tmp/project --entrypoint /bin/sh --platform linux/${{ matrix.arch }} node:20-alpine -c "\
-          apk add build-base git python3 py3-setuptools libstdc++ readline-dev ncurses-dev icu-dev icu-static --update-cache && \
+          apk add build-base git python3 py3-setuptools libstdc++ readline-dev ncurses-dev icu-dev --update-cache && \
           cd /tmp/project && \
           npm install --ignore-scripts && \
           ${{ env.NODE_BUILD_CMD_LEGACY }} -u ${{ secrets.GITHUB_TOKEN }} && \
