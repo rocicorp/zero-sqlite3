@@ -128,11 +128,11 @@ jobs:
     needs:
       - prebuild
       - prebuild-alpine
-      - prebuild-alpine-arm
+      - prebuild-alpine-arm64
       - prebuild-linux-x64
-      - prebuild-linux-arm
+      - prebuild-linux-arm64
       - prebuild-linux-x64-node-modern
-      - prebuild-linux-arm-node-modern
+      - prebuild-linux-arm64-node-modern
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
@@ -219,72 +219,49 @@ jobs:
       - run: ${{ env.NODE_BUILD_CMD_LEGACY }} -u ${{ secrets.GITHUB_TOKEN }}
       - run: ${{ env.NODE_BUILD_CMD_MODERN }} -u ${{ secrets.GITHUB_TOKEN }}
 
-  prebuild-alpine-arm:
+  # arm64 prebuilds run on native GitHub-hosted ARM runners (ubuntu-24.04-arm,
+  # free for public repos) instead of QEMU emulation. This is faster and avoids
+  # the QEMU "illegal instruction" crashes seen with emulated musl/arm64. 32-bit
+  # arm (arm/v7) is no longer built — Zero does not support it.
+  prebuild-alpine-arm64:
     if: ${{ github.event_name == 'release' }}
     permissions:
       contents: write # prebuild -u uploads the .node assets to the GitHub release
-    strategy:
-      fail-fast: false
-      matrix:
-        arch:
-          - arm/v7
-          - arm64
-    name: Prebuild on alpine (${{ matrix.arch }})
-    runs-on: ubuntu-latest
+    name: Prebuild on alpine (arm64)
+    runs-on: ubuntu-24.04-arm
+    container: node:20-alpine
     needs: test
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-      - uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3
-      - run: |
-          docker run --rm -v $(pwd):/tmp/project --entrypoint /bin/sh --platform linux/${{ matrix.arch }} node:20-alpine -c "\
-          apk add build-base git python3 py3-setuptools libstdc++ readline-dev ncurses-dev icu-dev --update-cache && \
-          cd /tmp/project && \
-          npm install --ignore-scripts && \
-          ${{ env.NODE_BUILD_CMD_LEGACY }} -u ${{ secrets.GITHUB_TOKEN }} && \
-          ${{ env.NODE_BUILD_CMD_MODERN }} -u ${{ secrets.GITHUB_TOKEN }}"
+      - run: apk add build-base git python3 py3-setuptools libstdc++ readline-dev ncurses-dev icu-dev --update-cache
+      - run: npm install --ignore-scripts
+      - run: ${{ env.NODE_BUILD_CMD_LEGACY }} -u ${{ secrets.GITHUB_TOKEN }}
+      - run: ${{ env.NODE_BUILD_CMD_MODERN }} -u ${{ secrets.GITHUB_TOKEN }}
 
-  prebuild-linux-arm:
+  prebuild-linux-arm64:
     if: ${{ github.event_name == 'release' }}
     permissions:
       contents: write # prebuild -u uploads the .node assets to the GitHub release
-    strategy:
-      fail-fast: false
-      matrix:
-        arch:
-          - arm/v7
-          - arm64
-    name: Prebuild on Linux (${{ matrix.arch }})
-    runs-on: ubuntu-latest
+    name: Prebuild on Linux arm64
+    runs-on: ubuntu-24.04-arm
+    container: node:20-bullseye
     needs: test
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-      - uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3
-      - run: |
-          docker run --rm -v $(pwd):/tmp/project --entrypoint /bin/sh --platform linux/${{ matrix.arch }} node:20-bullseye -c "\
-          apt-get update && apt-get install -y libicu-dev && \
-          cd /tmp/project && \
-          npm install --ignore-scripts && \
-          ${{ env.NODE_BUILD_CMD_LEGACY }} -u ${{ secrets.GITHUB_TOKEN }}"
+      - run: apt-get update && apt-get install -y libicu-dev
+      - run: npm install --ignore-scripts
+      - run: ${{ env.NODE_BUILD_CMD_LEGACY }} -u ${{ secrets.GITHUB_TOKEN }}
 
-  prebuild-linux-arm-node-modern:
+  prebuild-linux-arm64-node-modern:
     if: ${{ github.event_name == 'release' }}
     permissions:
       contents: write # prebuild -u uploads the .node assets to the GitHub release
-    strategy:
-      fail-fast: false
-      matrix:
-        arch:
-          - arm/v7
-          - arm64
-    name: Prebuild on Linux (${{ matrix.arch }}) (Node 25+)
-    runs-on: ubuntu-latest
+    name: Prebuild on Linux arm64 (Node 25+)
+    runs-on: ubuntu-24.04-arm
+    container: node:20-bookworm
     needs: test
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-      - uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3
-      - run: |
-          docker run --rm -v $(pwd):/tmp/project --entrypoint /bin/sh --platform linux/${{ matrix.arch }} node:20-bookworm -c "\
-          apt-get update && apt-get install -y libicu-dev && \
-          cd /tmp/project && \
-          npm install --ignore-scripts && \
-          ${{ env.NODE_BUILD_CMD_MODERN }} -u ${{ secrets.GITHUB_TOKEN }}"
+      - run: apt-get update && apt-get install -y libicu-dev
+      - run: npm install --ignore-scripts
+      - run: ${{ env.NODE_BUILD_CMD_MODERN }} -u ${{ secrets.GITHUB_TOKEN }}
