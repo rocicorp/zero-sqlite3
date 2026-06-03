@@ -16,10 +16,15 @@ jobs:
   bump:
     name: Bump to a new version
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # Required to push the version commit and tag.
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
-          token: ${{ secrets.PAT }}
+          # Use the built-in GITHUB_TOKEN (no PAT secret needed). Note: pushes
+          # made with GITHUB_TOKEN do not trigger further workflows, so the
+          # release that publishes to npm must still be created manually (which
+          # fires the `release` event that the publish job listens for).
           fetch-depth: 0
       - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
@@ -31,6 +36,6 @@ jobs:
       - name: Bump the version
         run: npm version ${{ github.event.inputs.type }}
       - name: Push commit
-        run: git push origin master:master
+        run: git push origin HEAD:main
       - name: Push tag
         run: git push origin --tags
