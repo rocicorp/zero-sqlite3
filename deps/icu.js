@@ -8,14 +8,14 @@
 // auto-registers Unicode-aware LIKE/upper()/lower()/REGEXP on every
 // connection. That code calls into ICU.
 //
-// We prefer STATIC linking so the prebuilt .node binaries stay self-contained:
-// zero-cache ships them via prebuild-install onto runtime images (e.g. Alpine)
-// that do not have ICU installed, and a dynamic NEEDED libicu*.so.<ver> would
-// fail to load there. Static linking is only possible where the ICU archives
-// are -fPIC, which holds on macOS (Homebrew) and Alpine (musl). Debian/Ubuntu
-// (glibc) ship non-PIC static archives, so there we link ICU dynamically
-// against the system .so (the consumer must have ICU installed at runtime).
-// See `useStatic` below.
+// We STATIC-link ICU where we can, so the prebuilt .node stays self-contained.
+// That is only possible where the ICU static archives are position-independent
+// (-fPIC) and can be linked into a shared object (the .node) — which in practice
+// is ONLY macOS (Homebrew). Both Linux flavors ship NON-PIC static archives:
+// Debian/Ubuntu (glibc) AND Alpine (musl) both fail with "recompile with -fPIC".
+// So on every Linux we link ICU dynamically against the system .so, and the
+// consumer must have ICU installed at runtime (e.g. `apk add icu-libs` in the
+// zero-cache Alpine image). See `useStatic` below.
 //
 // Usage:
 //   node icu.js include   -> the ICU include directory (for #include <unicode/...>)
@@ -23,9 +23,8 @@
 //                             paths or -L/-l flags), then the C++ runtime /
 //                             system libraries ICU depends on.
 //
-// Discovery order: pkg-config (Linux/Alpine) -> Homebrew icu4c (macOS) ->
-// common system locations. Set ICU_ROOT to override (expects ICU_ROOT/lib and
-// ICU_ROOT/include).
+// Discovery order: pkg-config (Linux) -> Homebrew icu4c (macOS) -> common system
+// locations. Set ICU_ROOT to override (expects ICU_ROOT/lib and ICU_ROOT/include).
 //
 // ICU is not enabled on Windows (see deps/sqlite3.gyp), so this script only
 // ever runs on macOS and Linux.
@@ -36,20 +35,15 @@ const fs = require('fs');
 const path = require('path');
 
 const isMac = process.platform === 'darwin';
-const isLinux = process.platform === 'linux';
-const isAlpine = isLinux && fs.existsSync('/etc/alpine-release');
 
-// We static-link ICU only where the static archives are position-independent
-// (-fPIC) and can therefore be linked into a shared object (the .node):
-//   * macOS  — Homebrew's icu4c archives are PIC.
-//   * Alpine — musl builds everything PIC, so icu-static is PIC.
-// Debian/Ubuntu (glibc) ship NON-PIC static archives (libicu*.a), which fail to
-// link into a shared object ("recompile with -fPIC"), so on glibc Linux we link
-// ICU dynamically against the distro .so instead — those consumers must have
-// ICU installed at runtime. ICU_ALLOW_DYNAMIC=1 forces dynamic everywhere as a
-// local-dev escape hatch.
-const useStatic =
-  (isMac || isAlpine) && process.env.ICU_ALLOW_DYNAMIC !== '1';
+// Static-link ICU only on macOS, the one platform whose static archives are
+// -fPIC and so can be linked into the .node shared object. Both Debian/Ubuntu
+// (glibc) and Alpine (musl) ship NON-PIC static archives (libicu*.a) that fail
+// with "relocation ... can not be used when making a shared object; recompile
+// with -fPIC", so on all Linux we link ICU dynamically against the system .so
+// and the consumer must have ICU at runtime. ICU_ALLOW_DYNAMIC=1 forces dynamic
+// even on macOS, as a local-dev escape hatch.
+const useStatic = isMac && process.env.ICU_ALLOW_DYNAMIC !== '1';
 
 function run(cmd) {
   try {
@@ -125,15 +119,14 @@ function staticLibInputs(loc) {
     if (full && fs.existsSync(full)) {
       return full;
     }
-    // On the static platforms (macOS, Alpine) a missing archive is fatal: we
-    // must not silently produce a dynamically-linked binary, since zero-cache
-    // ships these prebuilds onto images (e.g. Alpine) that have no ICU.
+    // macOS is the only static platform; a missing archive is fatal here (we
+    // must not silently fall back to a dynamic build that would change the
+    // shipped binary's behavior).
     fail(
       `static ICU archive ${name}.a not found in ${loc.libDir || '(unknown library dir)'}.\n` +
-        `  This platform links ICU statically to stay self-contained, so the build is aborting\n` +
-        `  rather than linking ICU dynamically. Install the static ICU libraries (icu-dev +\n` +
-        `  icu-static on Alpine, icu4c via Homebrew on macOS), or set ICU_ALLOW_DYNAMIC=1 to\n` +
-        `  allow a dynamic fallback for local development.`,
+        `  macOS links ICU statically to stay self-contained, so the build is aborting rather\n` +
+        `  than linking ICU dynamically. Install icu4c via Homebrew (brew install icu4c), or\n` +
+        `  set ICU_ALLOW_DYNAMIC=1 to allow a dynamic fallback for local development.`,
     );
     return null; // unreachable; fail() exits
   });
