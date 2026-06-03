@@ -72,7 +72,23 @@ describe('Unicode lower()/upper()', function () {
 	// Exhaustive guard: lower()/upper() must equal JS for every code point.
 	// Code points are joined with spaces (neither cased nor case-ignorable) so
 	// each is isolated for both mapping and the final-sigma context check.
+	//
+	// The table is a snapshot of one Unicode version (see unicode_case_data.h),
+	// so this exhaustive comparison is only valid when the runtime's Unicode
+	// matches it; on other Node versions a few newly-added/changed mappings
+	// would differ. The curated cases above use stable mappings and run
+	// everywhere.
 	it('matches JavaScript across every code point', function () {
+		const fs = require('fs');
+		const path = require('path');
+		const header = fs.readFileSync(
+			path.join(__dirname, '..', 'src', 'util', 'unicode_case_data.h'),
+			'utf8',
+		);
+		const tableUnicode = (header.match(/Unicode ([\d.]+)/) || [])[1];
+		if (tableUnicode !== process.versions.unicode) {
+			this.skip(); // table Unicode != runtime Unicode; see comment above
+		}
 		let buf = [];
 		const flush = () => {
 			if (!buf.length) return;
