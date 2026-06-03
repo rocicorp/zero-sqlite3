@@ -11,29 +11,47 @@
 // rules (Turkish dotless i, Lithuanian) are not applied, and neither does
 // String.prototype.toLowerCase, so the two stay consistent.
 
+#include <sqlite3.h>
+
 #include "unicode_case_data.h"
 
 namespace UnicodeCase {
 
-// Decodes one UTF-8 code point from s[*i, n). Advances *i past it. Returns
-// U+FFFD for malformed input (consuming a single byte) so we never loop.
+static int IsCont(unsigned int b) { return (b & 0xC0u) == 0x80u; }
+
+// Strictly decodes one UTF-8 code point from s[*i, n): rejects bad continuation
+// bytes, overlong encodings, surrogates, and values > U+10FFFF. Advances *i and
+// returns U+FFFD consuming a single byte on any malformed sequence, so output is
+// always well-formed UTF-8 and we never loop.
 static unsigned int Utf8Decode(const unsigned char* s, int n, int* i) {
-	unsigned int c = s[*i];
-	if (c < 0x80) { *i += 1; return c; }
-	if ((c >> 5) == 0x6 && *i + 1 < n) {
-		unsigned int r = ((c & 0x1Fu) << 6) | (s[*i + 1] & 0x3Fu);
-		*i += 2; return r;
+	int p = *i;
+	unsigned int c = s[p];
+	if (c < 0x80u) {
+		*i = p + 1;
+		return c;
 	}
-	if ((c >> 4) == 0xE && *i + 2 < n) {
-		unsigned int r = ((c & 0x0Fu) << 12) | ((s[*i + 1] & 0x3Fu) << 6) | (s[*i + 2] & 0x3Fu);
-		*i += 3; return r;
+	if (c >= 0xC2u && c <= 0xDFu && p + 1 < n && IsCont(s[p + 1])) {
+		*i = p + 2;
+		return ((c & 0x1Fu) << 6) | (s[p + 1] & 0x3Fu);
 	}
-	if ((c >> 3) == 0x1E && *i + 3 < n) {
-		unsigned int r = ((c & 0x07u) << 18) | ((s[*i + 1] & 0x3Fu) << 12) |
-			((s[*i + 2] & 0x3Fu) << 6) | (s[*i + 3] & 0x3Fu);
-		*i += 4; return r;
+	if (c >= 0xE0u && c <= 0xEFu && p + 2 < n && IsCont(s[p + 1]) && IsCont(s[p + 2])) {
+		unsigned int cp = ((c & 0x0Fu) << 12) | ((s[p + 1] & 0x3Fu) << 6) | (s[p + 2] & 0x3Fu);
+		if (cp >= 0x800u && !(cp >= 0xD800u && cp <= 0xDFFFu)) {
+			*i = p + 3;
+			return cp;
+		}
 	}
-	*i += 1; return 0xFFFDu;
+	if (c >= 0xF0u && c <= 0xF4u && p + 3 < n &&
+		IsCont(s[p + 1]) && IsCont(s[p + 2]) && IsCont(s[p + 3])) {
+		unsigned int cp = ((c & 0x07u) << 18) | ((s[p + 1] & 0x3Fu) << 12) |
+			((s[p + 2] & 0x3Fu) << 6) | (s[p + 3] & 0x3Fu);
+		if (cp >= 0x10000u && cp <= 0x10FFFFu) {
+			*i = p + 4;
+			return cp;
+		}
+	}
+	*i = p + 1;
+	return 0xFFFDu;
 }
 
 // Encodes `cp` as UTF-8 into `out` (>= 4 bytes). Returns bytes written.
@@ -120,7 +138,9 @@ static void Apply(sqlite3_context* ctx, sqlite3_value* arg, const ZeroCaseMap* m
 	// Request UTF-8 text first, then its byte length (SQLite requires this order).
 	const unsigned char* in = sqlite3_value_text(arg);
 	if (in == NULL) {
-		sqlite3_result_null(ctx);
+		// Not an SQL NULL (handled above), so this is an allocation/conversion
+		// failure — surface it rather than silently returning NULL.
+		sqlite3_result_error_nomem(ctx);
 		return;
 	}
 	int n = sqlite3_value_bytes(arg);

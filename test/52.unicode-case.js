@@ -118,6 +118,16 @@ describe('Unicode lower()/upper()', function () {
 		expect(lower(this.db, null)).to.equal(null);
 		expect(this.db.prepare('SELECT lower(123) AS v').pluck().get()).to.equal('123');
 	});
+
+	it('replaces malformed UTF-8 with U+FFFD (well-formed output)', function () {
+		// bytes 0x41 0xFF 0x42 = 'A', an invalid byte, 'B'. lower() -> 'a', the
+		// replacement char U+FFFD (EF BF BD), 'b'.
+		const hex = this.db
+			.prepare(`SELECT hex(lower(CAST(x'41ff42' AS TEXT))) AS v`)
+			.pluck()
+			.get();
+		expect(hex).to.equal('61EFBFBD62');
+	});
 });
 
 // Note: this is case *mapping* (matching JS toLowerCase/toUpperCase), not case

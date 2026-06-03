@@ -57,7 +57,12 @@ NODE_MODULE_INIT(/* exports, context */) {
 	Addon::ConfigureURI();
 
 	// Register Unicode-aware lower()/upper() on every connection (replaces ICU).
-	sqlite3_auto_extension((void (*)(void))zeroRegisterUnicodeCase);
+	// sqlite3_auto_extension is process-global, so guard against repeated
+	// NODE_MODULE_INIT calls (e.g. worker threads) registering it more than once.
+	static std::once_flag unicode_case_once;
+	std::call_once(unicode_case_once, []() {
+		sqlite3_auto_extension((void (*)(void))zeroRegisterUnicodeCase);
+	});
 
 	// Initialize addon instance.
 	Addon* addon = new Addon(isolate);
