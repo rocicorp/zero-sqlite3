@@ -34,6 +34,16 @@ jobs:
           - 22
           - 24
           - 26
+        # Node 26 on Windows can't build: Node 26's bundled gyp config feeds
+        # Clang/LLD ThinLTO flags (-flto=thin, /opt:lldltojobs) into the MSVC link
+        # step, which link.exe rejects (LNK1117). Upstream Node 26 + MSVC toolchain
+        # bug -- our build sets no LTO flags, and Node <=25 on Windows is fine.
+        # Revisit when the upstream toolchain is fixed. (Node 26 prebuilds still
+        # ship for macOS/Linux via NODE_BUILD_CMD_MODERN; the release-time Windows
+        # prebuild will need the same exclusion before it builds Node 26.)
+        exclude:
+          - os: windows-2022
+            node: 26
     name: Testing Node ${{ matrix.node }} on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     steps:
