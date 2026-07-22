@@ -17,6 +17,7 @@
     "src/**/*.[ch]pp",
     "lib/**",
     "deps/**",
+    "prebuilds/**",
     "shell.js"
   ],
   "engines": {
@@ -25,11 +26,10 @@
   },
   "types": "lib/index.d.ts",
   "dependencies": {
-    "bindings": "^1.5.0",
-    "prebuild-install": "^7.1.1"
+    "node-gyp-build": "^4.8.4"
   },
   "overrides": {
-    "prebuild": {
+    "prebuildify": {
       "node-abi": "^4.25.0"
     }
   },
@@ -39,12 +39,12 @@
     "fs-extra": "^11.1.1",
     "mocha": "^11.7.5",
     "nodemark": "^0.3.0",
-    "prebuild": "^13.0.1",
+    "prebuildify": "^6.0.1",
     "sqlite": "^5.0.1",
     "sqlite3": "^5.1.6"
   },
   "scripts": {
-    "install": "prebuild-install || node -e \"require('fs').existsSync('build/Release/better_sqlite3.node')||process.exit(1)\" || node-gyp rebuild --release",
+    "install": "node-gyp-build",
     "build-release": "node-gyp rebuild --release",
     "build-debug": "node-gyp rebuild --debug",
     "test": "mocha --exit --slow=75 --timeout=5000",
