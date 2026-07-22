@@ -157,7 +157,7 @@ jobs:
           node-version: 20
           registry-url: https://registry.npmjs.org
       - name: Collect prebuilds from all platforms
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           pattern: prebuilds-*
           path: prebuilds
@@ -201,7 +201,7 @@ jobs:
           ${{ env.NODE_BUILD_CMD_LEGACY }} --arch arm64
           ${{ env.NODE_BUILD_CMD_MODERN }} --arch arm64
           node deps/copy-shell.js --arch arm64
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: prebuilds-${{ matrix.os }}
           path: prebuilds
@@ -219,7 +219,7 @@ jobs:
       - run: npm install --ignore-scripts
       - run: ${{ env.NODE_BUILD_CMD_LEGACY }} --tag-libc
       - run: node deps/copy-shell.js
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: prebuilds-linux-x64
           path: prebuilds
@@ -236,7 +236,7 @@ jobs:
       - run: apt-get update && apt-get install -y libicu-dev
       - run: npm install --ignore-scripts
       - run: ${{ env.NODE_BUILD_CMD_MODERN }} --tag-libc
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: prebuilds-linux-x64-node-modern
           path: prebuilds
@@ -256,7 +256,7 @@ jobs:
       - run: ${{ env.NODE_BUILD_CMD_MODERN }} --tag-libc
       # No copy-shell here: the zero_sqlite3 shell target is not built on
       # alpine (type "none" in binding.gyp).
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: prebuilds-alpine
           path: prebuilds
@@ -285,7 +285,7 @@ jobs:
           npm install --ignore-scripts && \
           ${{ env.NODE_BUILD_CMD_LEGACY }} --tag-libc && \
           ${{ env.NODE_BUILD_CMD_MODERN }} --tag-libc"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: prebuilds-alpine-arm64
           path: prebuilds
@@ -303,7 +303,7 @@ jobs:
       - run: npm install --ignore-scripts
       - run: ${{ env.NODE_BUILD_CMD_LEGACY }} --tag-libc
       - run: node deps/copy-shell.js
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: prebuilds-linux-arm64
           path: prebuilds
@@ -320,7 +320,7 @@ jobs:
       - run: apt-get update && apt-get install -y libicu-dev
       - run: npm install --ignore-scripts
       - run: ${{ env.NODE_BUILD_CMD_MODERN }} --tag-libc
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: prebuilds-linux-arm64-node-modern
           path: prebuilds

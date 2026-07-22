@@ -12,7 +12,14 @@ const fs = require('fs');
 const path = require('path');
 
 const archFlagIndex = process.argv.indexOf('--arch');
-const arch = archFlagIndex === -1 ? process.arch : process.argv[archFlagIndex + 1];
+let arch = process.arch;
+if (archFlagIndex !== -1) {
+	arch = process.argv[archFlagIndex + 1];
+	if (!arch || arch.startsWith('--')) {
+		console.error('copy-shell: --arch requires a value (e.g. --arch ia32)');
+		process.exit(1);
+	}
+}
 const binaryName = process.platform === 'win32' ? 'zero_sqlite3.exe' : 'zero_sqlite3';
 const src = path.join(__dirname, '..', 'build', 'Release', binaryName);
 const destDir = path.join(__dirname, '..', 'prebuilds', `${process.platform}-${arch}`);
