@@ -15,10 +15,19 @@ on:
 env:
   # See https://github.com/nodejs/release#release-schedule
   # Node.js v20 EOL = 2026-04-30. v22 EOL = 2027-04-30. v23 EOL = 2025-06-01. v24 EOL = 2028-04-30. v25 EOL = 2026-06-01. v26 EOL = TBD.
+  # prebuildify writes per-ABI binaries into prebuilds/<platform>-<arch>/;
+  # each job uploads that directory as an artifact and the publish job merges
+  # them all into the npm package (no more GitHub-release download step).
+  # Linux jobs append --tag-libc so glibc and musl binaries can coexist in the
+  # same prebuilds/linux-<arch>/ directory.
+  # --no-napi: better-sqlite3 uses V8 APIs directly, so binaries are per-ABI.
+  # --name node: emit canonical node-gyp-build names (node.abi<N>[.<libc>].node)
+  # instead of prebuildify's package-name default, which would drop the
+  # runtime/abi tags that node-gyp-build matches on.
   # Node.js 20-24 can build with GCC 10 (bullseye)
-  NODE_BUILD_CMD_LEGACY: npx --no-install prebuild -r node -t 20.0.0 -t 22.0.0 -t 23.0.0 -t 24.0.0 --include-regex '_sqlite3'
+  NODE_BUILD_CMD_LEGACY: npx --no-install prebuildify --strip --no-napi --name node -t 20.0.0 -t 22.0.0 -t 23.0.0 -t 24.0.0
   # Node.js 25+ requires GCC 11+ for <source_location> header (bookworm)
-  NODE_BUILD_CMD_MODERN: npx --no-install prebuild -r node -t 25.0.0 -t 26.0.0 --include-regex '_sqlite3'
+  NODE_BUILD_CMD_MODERN: npx --no-install prebuildify --strip --no-napi --name node -t 25.0.0 -t 26.0.0
 
 jobs:
   test:
@@ -147,14 +156,20 @@ jobs:
         with:
           node-version: 20
           registry-url: https://registry.npmjs.org
+      - name: Collect prebuilds from all platforms
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: prebuilds-*
+          path: prebuilds
+          merge-multiple: true
+      - name: Show collected prebuilds
+        run: ls -lR prebuilds
       - name: Upgrade npm for OIDC support
         run: npm install -g npm@latest
       - run: npm publish --provenance
 
   prebuild:
     if: ${{ github.event_name == 'release' }}
-    permissions:
-      contents: write # prebuild -u uploads the .node assets to the GitHub release
     strategy:
       fail-fast: false
       matrix:
@@ -175,19 +190,25 @@ jobs:
       - if: ${{ startsWith(matrix.os, 'macos') }}
         run: brew install python-setuptools icu4c
       - run: npm install --ignore-scripts
-      - run: ${{ env.NODE_BUILD_CMD_LEGACY }} -u ${{ secrets.GITHUB_TOKEN }}
-      - run: ${{ env.NODE_BUILD_CMD_MODERN }} -u ${{ secrets.GITHUB_TOKEN }}
+      - run: ${{ env.NODE_BUILD_CMD_LEGACY }}
+      - run: ${{ env.NODE_BUILD_CMD_MODERN }}
+      - run: node deps/copy-shell.js
       - if: matrix.os == 'windows-2022'
         run: |
-          ${{ env.NODE_BUILD_CMD_LEGACY }} --arch ia32 -u ${{ secrets.GITHUB_TOKEN }}
-          ${{ env.NODE_BUILD_CMD_MODERN }} --arch ia32 -u ${{ secrets.GITHUB_TOKEN }}
-          ${{ env.NODE_BUILD_CMD_LEGACY }} --arch arm64 -u ${{ secrets.GITHUB_TOKEN }}
-          ${{ env.NODE_BUILD_CMD_MODERN }} --arch arm64 -u ${{ secrets.GITHUB_TOKEN }}
+          ${{ env.NODE_BUILD_CMD_LEGACY }} --arch ia32
+          ${{ env.NODE_BUILD_CMD_MODERN }} --arch ia32
+          node deps/copy-shell.js --arch ia32
+          ${{ env.NODE_BUILD_CMD_LEGACY }} --arch arm64
+          ${{ env.NODE_BUILD_CMD_MODERN }} --arch arm64
+          node deps/copy-shell.js --arch arm64
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: prebuilds-${{ matrix.os }}
+          path: prebuilds
+          if-no-files-found: error
 
   prebuild-linux-x64:
     if: ${{ github.event_name == 'release' }}
-    permissions:
-      contents: write # prebuild -u uploads the .node assets to the GitHub release
     name: Prebuild on Linux x64
     runs-on: ubuntu-latest
     container: node:20-bullseye
@@ -196,12 +217,16 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - run: apt-get update && apt-get install -y libicu-dev
       - run: npm install --ignore-scripts
-      - run: ${{ env.NODE_BUILD_CMD_LEGACY }} -u ${{ secrets.GITHUB_TOKEN }}
+      - run: ${{ env.NODE_BUILD_CMD_LEGACY }} --tag-libc
+      - run: node deps/copy-shell.js
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: prebuilds-linux-x64
+          path: prebuilds
+          if-no-files-found: error
 
   prebuild-linux-x64-node-modern:
     if: ${{ github.event_name == 'release' }}
-    permissions:
-      contents: write # prebuild -u uploads the .node assets to the GitHub release
     name: Prebuild on Linux x64 (Node 25+)
     runs-on: ubuntu-latest
     container: node:20-bookworm
@@ -210,12 +235,15 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - run: apt-get update && apt-get install -y libicu-dev
       - run: npm install --ignore-scripts
-      - run: ${{ env.NODE_BUILD_CMD_MODERN }} -u ${{ secrets.GITHUB_TOKEN }}
+      - run: ${{ env.NODE_BUILD_CMD_MODERN }} --tag-libc
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: prebuilds-linux-x64-node-modern
+          path: prebuilds
+          if-no-files-found: error
 
   prebuild-alpine:
     if: ${{ github.event_name == 'release' }}
-    permissions:
-      contents: write # prebuild -u uploads the .node assets to the GitHub release
     name: Prebuild on alpine
     runs-on: ubuntu-latest
     container: node:20-alpine
@@ -224,8 +252,15 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - run: apk add build-base git python3 py3-setuptools libstdc++ readline-dev ncurses-dev icu-dev --update-cache
       - run: npm install --ignore-scripts
-      - run: ${{ env.NODE_BUILD_CMD_LEGACY }} -u ${{ secrets.GITHUB_TOKEN }}
-      - run: ${{ env.NODE_BUILD_CMD_MODERN }} -u ${{ secrets.GITHUB_TOKEN }}
+      - run: ${{ env.NODE_BUILD_CMD_LEGACY }} --tag-libc
+      - run: ${{ env.NODE_BUILD_CMD_MODERN }} --tag-libc
+      # No copy-shell here: the zero_sqlite3 shell target is not built on
+      # alpine (type "none" in binding.gyp).
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: prebuilds-alpine
+          path: prebuilds
+          if-no-files-found: error
 
   # arm64 prebuilds run on native GitHub-hosted ARM runners (ubuntu-24.04-arm,
   # free for public repos) instead of QEMU emulation. This is faster and avoids
@@ -238,8 +273,6 @@ jobs:
   # QEMU.
   prebuild-alpine-arm64:
     if: ${{ github.event_name == 'release' }}
-    permissions:
-      contents: write # prebuild -u uploads the .node assets to the GitHub release
     name: Prebuild on alpine (arm64)
     runs-on: ubuntu-24.04-arm
     needs: test
@@ -250,13 +283,16 @@ jobs:
           apk add build-base git python3 py3-setuptools libstdc++ readline-dev ncurses-dev icu-dev --update-cache && \
           cd /tmp/project && \
           npm install --ignore-scripts && \
-          ${{ env.NODE_BUILD_CMD_LEGACY }} -u ${{ secrets.GITHUB_TOKEN }} && \
-          ${{ env.NODE_BUILD_CMD_MODERN }} -u ${{ secrets.GITHUB_TOKEN }}"
+          ${{ env.NODE_BUILD_CMD_LEGACY }} --tag-libc && \
+          ${{ env.NODE_BUILD_CMD_MODERN }} --tag-libc"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: prebuilds-alpine-arm64
+          path: prebuilds
+          if-no-files-found: error
 
   prebuild-linux-arm64:
     if: ${{ github.event_name == 'release' }}
-    permissions:
-      contents: write # prebuild -u uploads the .node assets to the GitHub release
     name: Prebuild on Linux arm64
     runs-on: ubuntu-24.04-arm
     container: node:20-bullseye
@@ -265,12 +301,16 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - run: apt-get update && apt-get install -y libicu-dev
       - run: npm install --ignore-scripts
-      - run: ${{ env.NODE_BUILD_CMD_LEGACY }} -u ${{ secrets.GITHUB_TOKEN }}
+      - run: ${{ env.NODE_BUILD_CMD_LEGACY }} --tag-libc
+      - run: node deps/copy-shell.js
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: prebuilds-linux-arm64
+          path: prebuilds
+          if-no-files-found: error
 
   prebuild-linux-arm64-node-modern:
     if: ${{ github.event_name == 'release' }}
-    permissions:
-      contents: write # prebuild -u uploads the .node assets to the GitHub release
     name: Prebuild on Linux arm64 (Node 25+)
     runs-on: ubuntu-24.04-arm
     container: node:20-bookworm
@@ -279,4 +319,9 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - run: apt-get update && apt-get install -y libicu-dev
       - run: npm install --ignore-scripts
-      - run: ${{ env.NODE_BUILD_CMD_MODERN }} -u ${{ secrets.GITHUB_TOKEN }}
+      - run: ${{ env.NODE_BUILD_CMD_MODERN }} --tag-libc
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: prebuilds-linux-arm64-node-modern
+          path: prebuilds
+          if-no-files-found: error
