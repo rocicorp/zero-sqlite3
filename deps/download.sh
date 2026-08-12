@@ -18,7 +18,7 @@
 # 4. node-gyp links the two resulting binaries to generate better_sqlite3.node.
 # ===
 
-CHECKIN="0e862bc9ed7aa9ae"
+CHECKIN="2137918d6aa8cc59"
 
 # Defines below are sorted alphabetically.
 DEFINES="
