@@ -14,7 +14,7 @@
   },
   "files": [
     "binding.gyp",
-    "src/**/*.[ch]pp",
+    "src/**/*.{c,cc,cpp,h,hpp}",
     "lib/**",
     "deps/**",
     "prebuilds/**",
