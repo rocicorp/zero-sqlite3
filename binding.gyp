@@ -5,7 +5,10 @@
 {
   'includes': ['deps/common.gypi'],
   'variables': {
-    'is_alpine%': '<!(test -f /etc/alpine-release && echo 1 || echo 0)',
+    # Emit "true"/"false" rather than 1/0: gyp converts command output that
+    # looks like an integer into a real int, so a later `is_alpine == "1"`
+    # string comparison would silently never match.
+    'is_alpine%': '<!(test -f /etc/alpine-release && echo true || echo false)',
   },
   'targets': [
     {
@@ -35,7 +38,7 @@
     {
       'target_name': 'zero_sqlite3',
       'conditions': [
-        ['is_alpine == "1"', {
+        ['is_alpine == "true"', {
           'type': 'none',
           'dependencies': [],
           'sources': [],
@@ -47,7 +50,14 @@
           'direct_dependent_settings': {
             'include_dirs': ['<(SHARED_INTERMEDIATE_DIR)/sqlite3/'],
           },
-          'cflags': ['-std=c99', '-w', '-D_POSIX_SOURCE'],
+          # gnu99, not "c99 + _POSIX_SOURCE": shell.c needs PATH_MAX and
+          # realpath(), which neither glibc nor musl declares under that pair
+          # (musl also stops defaulting to _XOPEN_SOURCE 700 once __STRICT_ANSI__
+          # or _POSIX_SOURCE is set). gcc <= 13 only warns about the resulting
+          # implicit realpath() declaration -- and -w hides that -- so the shell
+          # links with a truncated 32-bit return value; gcc >= 14 makes it a hard
+          # error that -w does not suppress.
+          'cflags': ['-std=gnu99', '-w'],
           'xcode_settings': {
             'OTHER_CFLAGS': ['-std=c99'],
             'WARNING_CFLAGS': ['-w'],
