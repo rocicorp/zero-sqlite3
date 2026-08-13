@@ -6,9 +6,6 @@
 
 {
   'includes': ['common.gypi'],
-  'variables': {
-    'is_alpine%': '<!(test -f /etc/alpine-release && echo 1 || echo 0)',
-  },
   'targets': [
     {
       'target_name': 'locate_sqlite3',
