@@ -19,6 +19,7 @@
 - [Database#loadExtension()](#loadextensionpath-entrypoint---this)
 - [Database#exec()](#execstring---this)
 - [Database#close()](#close---this)
+- [Database#persistWal()](#persistwaltogglestate---this)
 - [Properties](#properties)
 
 ### new Database(*path*, [*options*])
@@ -392,6 +393,22 @@ process.on('exit', () => db.close());
 process.on('SIGHUP', () => process.exit(128 + 1));
 process.on('SIGINT', () => process.exit(128 + 2));
 process.on('SIGTERM', () => process.exit(128 + 15));
+```
+
+### .persistWal([*toggleState*]) -> *this*
+
+Toggles whether the connection keeps the [write-ahead log](https://www.sqlite.org/wal.html) when it is the last connection to close the database (see [`SQLITE_FCNTL_PERSIST_WAL`](https://www.sqlite.org/c3ref/c_fcntl_begin_atomic_write.html#sqlitefcntlpersistwal)). The last connection still checkpoints the WAL into the database, but leaves the `-wal` and `-shm` files in place instead of deleting them, so the next connection continues the same WAL. It is off by default. Invoking it without an argument turns it on.
+
+The setting applies to the `main` database of this connection only, and has no effect on in-memory or temporary databases.
+
+Turn it off before switching the database out of WAL mode (e.g. `PRAGMA journal_mode = DELETE` or `OFF`). Otherwise the `-wal` file is left in place and SQLite reopens it on the next transaction, so the database effectively stays in WAL mode.
+
+```js
+db.pragma('journal_mode = WAL');
+db.persistWal(); // Keep the WAL when this connection closes.
+
+db.persistWal(false);
+db.pragma('journal_mode = DELETE'); // Folds in and deletes the WAL.
 ```
 
 ## Properties

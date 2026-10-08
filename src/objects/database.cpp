@@ -136,6 +136,7 @@ INIT(Database::Init) {
 	SetPrototypeMethod(isolate, data, t, "close", JS_close);
 	SetPrototypeMethod(isolate, data, t, "defaultSafeIntegers", JS_defaultSafeIntegers);
 	SetPrototypeMethod(isolate, data, t, "unsafeMode", JS_unsafeMode);
+	SetPrototypeMethod(isolate, data, t, "persistWal", JS_persistWal);
 	SetPrototypeGetter(isolate, data, t, "open", JS_open);
 	SetPrototypeGetter(isolate, data, t, "inTransaction", JS_inTransaction);
 	return t->GetFunction(OnlyContext).ToLocalChecked();
@@ -405,6 +406,20 @@ NODE_METHOD(Database::JS_unsafeMode) {
 	if (info.Length() == 0) db->unsafe_mode = true;
 	else { REQUIRE_ARGUMENT_BOOLEAN(first, db->unsafe_mode); }
 	sqlite3_db_config(db->db_handle, SQLITE_DBCONFIG_DEFENSIVE, static_cast<int>(!db->unsafe_mode), NULL);
+}
+
+NODE_METHOD(Database::JS_persistWal) {
+	Database* db = Unwrap<Database>(info.This());
+	REQUIRE_DATABASE_OPEN(db);
+	bool persist_wal = true;
+	if (info.Length() != 0) { REQUIRE_ARGUMENT_BOOLEAN(first, persist_wal); }
+	int arg = persist_wal ? 1 : 0;
+	int status = sqlite3_file_control(db->db_handle, "main", SQLITE_FCNTL_PERSIST_WAL, &arg);
+	// The VFS of an in-memory or temporary database has no WAL to persist and
+	// reports SQLITE_NOTFOUND, which is not an error.
+	if (status != SQLITE_OK && status != SQLITE_NOTFOUND) {
+		ThrowSqliteError(db->addon, sqlite3_errstr(status), status);
+	}
 }
 
 NODE_GETTER(Database::JS_open) {
