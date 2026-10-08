@@ -59,7 +59,14 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
-          node-version: ${{ matrix.node }}
+          # Node 24.19.0+ (through at least 24.21.0) aborts when it garbage
+          # collects a node::ObjectWrap compiled against its own headers: the
+          # header's destructor calls RemoveEnvironmentCleanupHook, which the
+          # 24.x runtime can't handle without a current Environment
+          # (https://github.com/nodejs/node/issues/65446). The release
+          # prebuilds compile against 24.0.0 headers and are unaffected.
+          # Unpin once a 24.x release ships the fix.
+          node-version: ${{ matrix.node == 24 && '24.18.1' || matrix.node }}
       - if: ${{ startsWith(matrix.os, 'windows') }}
         run: pip.exe install setuptools
       - if: ${{ startsWith(matrix.os, 'macos') }}

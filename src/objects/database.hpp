@@ -79,6 +79,7 @@ private:
 	static NODE_METHOD(JS_close);
 	static NODE_METHOD(JS_defaultSafeIntegers);
 	static NODE_METHOD(JS_unsafeMode);
+	static NODE_METHOD(JS_persistWal);
 	static NODE_GETTER(JS_open);
 	static NODE_GETTER(JS_inTransaction);
 
