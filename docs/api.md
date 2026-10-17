@@ -521,7 +521,7 @@ for (const cat of stmt.iterate()) {
 
 Reads up to `capacity` rows per call, for callers that consume many rows and want to avoid the cost of one native call and one row object per row. Numbers are written into `buffer`, an `ArrayBuffer` or `SharedArrayBuffer`. TEXT and BLOB values are created natively and returned in an array, one per call.
 
-`buffer` must hold at least `16 + 9 * capacity * columnCount` bytes, where `columnCount` is `stmt.columns().length`. It is laid out as follows, with `R = capacity` and `C = columnCount`:
+`buffer` must hold at least `16 + 9 * capacity * columnCount` bytes, where `columnCount` is `stmt.columns().length`. A resizable `ArrayBuffer` is not accepted (a growable `SharedArrayBuffer` is). It is laid out as follows, with `R = capacity` and `C = columnCount`:
 
 | bytes | contents |
 |---|---|

@@ -93,6 +93,35 @@ describe('Statement#stepIntoStrings()', function () {
 		expect(() => stmt.stepIntoStrings(buffer, 4)).to.throw(RangeError);
 		expect(stmt.busy).to.be.false;
 	});
+	it('should reject a resizable ArrayBuffer', function () {
+		const stmt = this.db.prepare('SELECT * FROM entries');
+		const size = bufferFor(stmt, 4).byteLength;
+		const buffer = new ArrayBuffer(size, {maxByteLength: size * 2});
+		expect(() => stmt.stepIntoStrings(buffer, 4)).to.throw(RangeError);
+		expect(stmt.busy).to.be.false;
+		const sab = new SharedArrayBuffer(size, {maxByteLength: size * 2});
+		stmt.stepIntoStrings(sab, 4);
+		expect(new Int32Array(sab, 0, 1)[0]).to.equal(4);
+		stmt.closeCursor();
+	});
+	it('should survive a user-defined function detaching the buffer', function () {
+		let buffer;
+		const moved = [];
+		this.db.function('detach', x => {
+			if (!buffer.detached) moved.push(buffer.transfer(0));
+			return x;
+		});
+		const stmt = this.db.prepare('SELECT detach(b), a FROM entries ORDER BY rowid');
+		for (let i = 0; i < 20; i++) {
+			buffer = bufferFor(stmt, 11);
+			const values = stmt.stepIntoStrings(buffer, 11);
+			expect(values).to.deep.equal(Array(10).fill('foo'));
+			expect(buffer.detached).to.be.true;
+			expect(stmt.busy).to.be.false;
+		}
+		global.gc?.();
+		expect(moved.length).to.equal(20);
+	});
 	it('should return the same values as raw all()', function () {
 		this.db.prepare("INSERT INTO entries VALUES ('héllo ☃', 9223372036854775807, -0.5, x'', 'ascii')").run();
 		this.db.prepare("INSERT INTO entries VALUES (NULL, -9223372036854775808, NULL, NULL, '')").run();

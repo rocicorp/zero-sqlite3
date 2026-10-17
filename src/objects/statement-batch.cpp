@@ -35,26 +35,34 @@ namespace Batch {
 	static const size_t HEADER = 16;
 
 	struct Layout {
+		// Keeps the memory alive for the whole call: a user-defined function
+		// runs JavaScript during sqlite3_step(), which could detach the buffer
+		// (e.g. with transfer()) and so free its memory.
+		std::shared_ptr<v8::BackingStore> store;
 		uint8_t* slots;
 		uint8_t* tags;
 		int32_t* header;
 		int columns;
 
 		// Returns false if `buf` is not a (Shared)ArrayBuffer large enough.
+		// Resizable ArrayBuffers are rejected, since a user-defined function
+		// could shrink one while rows are being written.
 		bool Init(v8::Local<v8::Value> buf, int capacity, int columns_) {
-			void* data;
 			size_t size;
 			if (buf->IsArrayBuffer()) {
 				v8::Local<v8::ArrayBuffer> ab = buf.As<v8::ArrayBuffer>();
-				data = ab->Data();
+				store = ab->GetBackingStore();
+				if (store->IsResizableByUserJavaScript()) return false;
 				size = ab->ByteLength();
 			} else if (buf->IsSharedArrayBuffer()) {
-				v8::Local<v8::SharedArrayBuffer> ab = buf.As<v8::SharedArrayBuffer>();
-				data = ab->Data();
-				size = ab->ByteLength();
+				// A growable SharedArrayBuffer only grows, in place.
+				v8::Local<v8::SharedArrayBuffer> sab = buf.As<v8::SharedArrayBuffer>();
+				store = sab->GetBackingStore();
+				size = sab->ByteLength();
 			} else {
 				return false;
 			}
+			void* data = store->Data();
 			const size_t cells = (size_t)capacity * (size_t)columns_;
 			if (data == NULL || size < HEADER + cells * 9) return false;
 			uint8_t* base = static_cast<uint8_t*>(data);
@@ -198,7 +206,7 @@ NODE_METHOD(Statement::JS_stepIntoStrings) {
 	}
 
 	v8::LocalVector<v8::Value> values(isolate);
-	values.reserve(capacity * 4);
+	values.reserve((size_t)std::min(capacity, 64) * (size_t)l.columns);
 	int rows = 0;
 	int status = SQLITE_ROW;
 	bool converted = true;
