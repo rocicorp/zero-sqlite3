@@ -42,6 +42,7 @@ class Backup;
 
 #include "objects/backup.cpp"
 #include "objects/statement.cpp"
+#include "objects/statement-batch.cpp"
 #include "objects/database.cpp"
 #include "objects/statement-iterator.cpp"
 #include "util/unicode_case.cpp"

@@ -9,8 +9,19 @@ public:
 	}
 
 	bool Bind(NODE_ARGUMENTS info, int argc, Statement* stmt) {
+		return BindRange(info, 0, argc, stmt);
+	}
+
+	// Binds the arguments from index `start` on.
+	bool BindFrom(NODE_ARGUMENTS info, int start, Statement* stmt) {
+		return BindRange(info, start, info.Length(), stmt);
+	}
+
+private:
+
+	bool BindRange(NODE_ARGUMENTS info, int start, int argc, Statement* stmt) {
 		assert(anon_index == 0);
-		Result result = BindArgs(info, argc, stmt);
+		Result result = BindArgs(info, start, argc, stmt);
 		if (success && result.count != param_count) {
 			if (result.count < param_count) {
 				if (!result.bound_object && stmt->GetBindMap(OnlyIsolate)->GetSize()) {
@@ -24,8 +35,6 @@ public:
 		}
 		return success;
 	}
-
-private:
 
 	struct Result {
 		int count;
@@ -146,12 +155,12 @@ private:
 	// If an error occurs, an appropriate error is thrown.
 	// The return value is a struct indicating how many parameters were successfully bound
 	// and whether or not it tried to bind an object.
-	Result BindArgs(NODE_ARGUMENTS info, int argc, Statement* stmt) {
+	Result BindArgs(NODE_ARGUMENTS info, int start, int argc, Statement* stmt) {
 		UseIsolate;
 		int count = 0;
 		bool bound_object = false;
 
-		for (int i = 0; i < argc; ++i) {
+		for (int i = start; i < argc; ++i) {
 			v8::Local<v8::Value> arg = info[i];
 
 			if (arg->IsArray()) {

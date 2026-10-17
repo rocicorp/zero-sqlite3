@@ -14,7 +14,8 @@ Statement::Statement(
 	has_bind_map(false),
 	safe_ints(db->GetState()->safe_ints),
 	mode(Data::FLAT),
-	returns_data(returns_data) {
+	returns_data(returns_data),
+	cursor_open(false) {
 	assert(db != NULL);
 	assert(handle != NULL);
 	assert(db->GetState()->open);
@@ -67,6 +68,8 @@ INIT(Statement::Init) {
 	SetPrototypeMethod(isolate, data, t, "scanStatusV2", JS_scanStatusV2);
 	SetPrototypeMethod(isolate, data, t, "scanStatusReset", JS_scanStatusReset);
 	SetPrototypeMethod(isolate, data, t, "explainQueryPlan", JS_explainQueryPlan);
+	SetPrototypeMethod(isolate, data, t, "stepIntoStrings", JS_stepIntoStrings);
+	SetPrototypeMethod(isolate, data, t, "closeCursor", JS_closeCursor);
 	SetPrototypeGetter(isolate, data, t, "busy", JS_busy);
 	return t->GetFunction(OnlyContext).ToLocalChecked();
 }

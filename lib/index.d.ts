@@ -28,6 +28,18 @@ declare namespace BetterSqlite3 {
         get(...params: BindParameters): Result | undefined;
         all(...params: BindParameters): Result[];
         iterate(...params: BindParameters): IterableIterator<Result>;
+        /**
+         * Steps up to `capacity` rows into `buffer` and returns the TEXT and BLOB
+         * values of those rows. See docs/api.md for the buffer layout. Bind
+         * parameters are only accepted by the call that starts a cursor.
+         */
+        stepIntoStrings(
+            buffer: ArrayBuffer | SharedArrayBuffer,
+            capacity: number,
+            ...params: BindParameters | []
+        ): Array<string | Buffer>;
+        /** Abandons a cursor started by stepIntoStrings(), if one is open. */
+        closeCursor(): this;
         pluck(toggleState?: boolean): this;
         expand(toggleState?: boolean): this;
         raw(toggleState?: boolean): this;

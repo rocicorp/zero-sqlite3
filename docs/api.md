@@ -431,6 +431,8 @@ An object representing a single SQL statement.
 - [Statement#get()](#getbindparameters---row)
 - [Statement#all()](#allbindparameters---array-of-rows)
 - [Statement#iterate()](#iteratebindparameters---iterator)
+- [Statement#stepIntoStrings()](#stepintostringsbuffer-capacity-bindparameters---array)
+- [Statement#closeCursor()](#closecursor---this)
 - [Statement#pluck()](#plucktogglestate---this)
 - [Statement#expand()](#expandtogglestate---this)
 - [Statement#raw()](#rawtogglestate---this)
@@ -512,6 +514,58 @@ for (const cat of stmt.iterate()) {
   }
 }
 ```
+
+### .stepIntoStrings(*buffer*, *capacity*, [*...bindParameters*]) -> *array*
+
+**(only on statements that return data)*
+
+Reads up to `capacity` rows per call, for callers that consume many rows and want to avoid the cost of one native call and one row object per row. Numbers are written into `buffer`, an `ArrayBuffer` or `SharedArrayBuffer`. TEXT and BLOB values are created natively and returned in an array, one per call.
+
+`buffer` must hold at least `16 + 9 * capacity * columnCount` bytes, where `columnCount` is `stmt.columns().length`. It is laid out as follows, with `R = capacity` and `C = columnCount`:
+
+| bytes | contents |
+|---|---|
+| `[0, 16)` | `Int32` × 4: the number of rows written, `done` (`1` if the result is exhausted, else `0`), `C`, and `0` |
+| `[16, 16 + 8RC)` | one 8-byte slot per value, row-major: an `Int64` for INTEGER, a `Float64` for FLOAT, and for TEXT and BLOB a `Uint32` index into the returned array (the other 4 bytes are `0`) |
+| `[16 + 8RC, 16 + 9RC)` | one tag byte per value: `0` NULL, `1` INTEGER, `2` FLOAT, `3` TEXT (a string), `4` BLOB (a `Buffer`) |
+
+Values are written as by [`.raw()`](#rawtogglestate---this): [`.pluck()`](#plucktogglestate---this), [`.expand()`](#expandtogglestate---this), [`.raw()`](#rawtogglestate---this) and [`.safeIntegers()`](./integer.md#getting-bigints-from-the-database) have no effect, and the caller decides how to convert integers.
+
+If a call does not exhaust the result, the statement stays busy like an open [`.iterate()`](#iteratebindparameters---iterator) iterator: call `.stepIntoStrings(buffer, capacity)` again, with no bind parameters, to continue, or [`.closeCursor()`](#closecursor---this) to stop early. A cursor that is neither finished nor closed keeps the statement busy, just like an iterator that is never finished or returned. If execution fails, an `Error` is thrown and the cursor is closed. A call can return `done` with no rows when the previous call returned exactly the last rows.
+
+```js
+const stmt = db.prepare('SELECT id, name, weight FROM cats');
+const capacity = 64;
+const columns = stmt.columns().length;
+const buffer = new ArrayBuffer(16 + 9 * capacity * columns);
+const header = new Int32Array(buffer, 0, 4);
+const f64 = new Float64Array(buffer, 16, capacity * columns);
+const i64 = new BigInt64Array(buffer, 16, capacity * columns);
+const u32 = new Uint32Array(buffer, 16, capacity * columns * 2);
+const tags = new Uint8Array(buffer, 16 + 8 * capacity * columns, capacity * columns);
+const value = (values, cell) => {
+  switch (tags[cell]) {
+    case 1: return i64[cell];
+    case 2: return f64[cell];
+    case 3: case 4: return values[u32[cell * 2]];
+    default: return null;
+  }
+};
+
+let values = stmt.stepIntoStrings(buffer, capacity);
+for (;;) {
+  for (let row = 0; row < header[0]; row++) {
+    const cell = row * columns;
+    console.log(value(values, cell), value(values, cell + 1), value(values, cell + 2));
+  }
+  if (header[1]) break;
+  values = stmt.stepIntoStrings(buffer, capacity);
+}
+```
+
+### .closeCursor() -> *this*
+
+Abandons a cursor started by [`.stepIntoStrings()`](#stepintostringsbuffer-capacity-bindparameters---array), resetting the statement so it can be used again. Does nothing if no cursor is open.
 
 ### .pluck([toggleState]) -> *this*
 
@@ -621,7 +675,7 @@ console.log(cat.name); // => "Joey"
 
 **.readonly -> _boolean_** - Whether the prepared statement is readonly, meaning it does not mutate the database (note that [SQL functions might still change the database indirectly](https://www.sqlite.org/c3ref/stmt_readonly.html) as a side effect, even if the `.readonly` property is `true`).
 
-**.busy -> _boolean_** - Whether the prepared statement is busy executing a query via the [`.iterate()`](#iteratebindparameters---iterator) method.
+**.busy -> _boolean_** - Whether the prepared statement is busy executing a query via the [`.iterate()`](#iteratebindparameters---iterator) or [`.stepIntoStrings()`](#stepintostringsbuffer-capacity-bindparameters---array) method.
 
 # class *SqliteError*
 

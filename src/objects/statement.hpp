@@ -14,6 +14,9 @@ public:
 	// Returns the Statement's bind map (creates it upon first execution).
 	BindMap* GetBindMap(v8::Isolate* isolate);
 
+	// Ends a cursor opened by stepIntoStrings(), if any.
+	void CloseCursor();
+
 	static INIT(Init);
 
 private:
@@ -47,6 +50,8 @@ private:
 	static NODE_METHOD(JS_scanStatusReset);
 	static NODE_METHOD(JS_explainQueryPlan);
 	static NODE_GETTER(JS_busy);
+	static NODE_METHOD(JS_stepIntoStrings);
+	static NODE_METHOD(JS_closeCursor);
 
 	Database* const db;
 	sqlite3_stmt* const handle;
@@ -58,4 +63,5 @@ private:
 	bool safe_ints;
 	char mode;
 	const bool returns_data;
+	bool cursor_open;
 };
