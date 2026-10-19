@@ -72,7 +72,7 @@ void StatementIterator::NextBatch(NODE_ARGUMENTS info, int max_rows) {
 		if (mode == Data::RAW) {
 			for (int i = 0; i < columns; ++i) values.emplace_back(Data::GetValueJS(isolate, handle, i, safe_ints));
 		} else {
-			values.emplace_back(Data::GetRowJS(isolate, ctx, handle, safe_ints, mode));
+			values.emplace_back(stmt->GetRowJS(isolate, ctx, safe_ints, mode));
 		}
 		++rows;
 	}
