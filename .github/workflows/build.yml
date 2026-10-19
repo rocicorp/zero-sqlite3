@@ -24,8 +24,9 @@ env:
   # --name node: emit canonical node-gyp-build names (node.abi<N>[.<libc>].node)
   # instead of prebuildify's package-name default, which would drop the
   # runtime/abi tags that node-gyp-build matches on.
-  # Node.js 20-24 can build with GCC 10 (bullseye)
-  NODE_BUILD_CMD_LEGACY: npx --no-install prebuildify --strip --no-napi --name node -t 20.0.0 -t 22.0.0 -t 23.0.0 -t 24.0.0
+  # Node.js 22-24 can build with GCC 10 (bullseye). No Node.js 20 binaries:
+  # the addon uses V8 APIs that Node.js 20 lacks, and `engines` is 22.x || 24.x.
+  NODE_BUILD_CMD_LEGACY: npx --no-install prebuildify --strip --no-napi --name node -t 22.0.0 -t 23.0.0 -t 24.0.0
   # Node.js 25+ requires GCC 11+ for <source_location> header (bookworm)
   NODE_BUILD_CMD_MODERN: npx --no-install prebuildify --strip --no-napi --name node -t 25.0.0 -t 26.0.0
 
