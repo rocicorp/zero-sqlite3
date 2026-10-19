@@ -126,4 +126,23 @@ describe('Statement#all()', function () {
 			this.db.prepare(SQL2).all({})
 		).to.throw(RangeError);
 	});
+	it('should use the new column names after the schema changes', function () {
+		// Enough rows that the change also shows up past the first ones.
+		this.db.prepare('INSERT INTO entries (a, b) SELECT a, b + 10 FROM entries').run();
+		this.db.prepare('INSERT INTO entries (a, b) SELECT a, b + 20 FROM entries').run();
+		this.db.prepare('INSERT INTO entries (a, b) SELECT a, b + 40 FROM entries').run();
+		const stmt = this.db.prepare('SELECT * FROM entries ORDER BY rowid');
+		const keys = () => {
+			const rows = stmt.all();
+			expect(rows).to.have.lengthOf(80);
+			const result = Object.keys(rows[0]);
+			for (const row of rows) expect(Object.keys(row)).to.deep.equal(result);
+			return result;
+		};
+		expect(keys()).to.deep.equal(['a', 'b', 'c', 'd', 'e']);
+		this.db.prepare('ALTER TABLE entries RENAME COLUMN a TO z').run();
+		expect(keys()).to.deep.equal(['z', 'b', 'c', 'd', 'e']);
+		this.db.prepare('ALTER TABLE entries ADD COLUMN f INTEGER').run();
+		expect(keys()).to.deep.equal(['z', 'b', 'c', 'd', 'e', 'f']);
+	});
 });

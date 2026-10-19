@@ -17,6 +17,16 @@ public:
 	// Ends a cursor opened by stepIntoStrings(), if any.
 	void CloseCursor();
 
+#if defined(NODE_MODULE_VERSION) && NODE_MODULE_VERSION >= 127
+	// Returns a builder of object rows that reuses the Statement's cached
+	// column names.
+	RowBuilder NewRowBuilder(v8::Isolate* isolate, bool safe_ints);
+#endif
+
+	// Converts the current row to JavaScript, reusing the cached column names
+	// for object rows.
+	v8::Local<v8::Value> GetRowJS(v8::Isolate* isolate, v8::Local<v8::Context> ctx, bool safe_ints, char mode);
+
 	static INIT(Init);
 
 private:
@@ -26,6 +36,9 @@ private:
 		explicit Extras(sqlite3_uint64 id);
 		BindMap bind_map;
 		const sqlite3_uint64 id;
+#if defined(NODE_MODULE_VERSION) && NODE_MODULE_VERSION >= 127
+		ColumnKeys column_keys;
+#endif
 	};
 
 	explicit Statement(
