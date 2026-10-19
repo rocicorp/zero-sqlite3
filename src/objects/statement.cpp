@@ -53,15 +53,15 @@ Statement::Extras::Extras(sqlite3_uint64 id)
 	: bind_map(0), id(id) {}
 
 #if defined(NODE_MODULE_VERSION) && NODE_MODULE_VERSION >= 127
-RowBuilder Statement::NewRowBuilder(v8::Isolate* isolate, bool safe_ints) {
-	return RowBuilder(isolate, handle, safe_ints, &extras->column_keys);
+RowBuilder Statement::NewRowBuilder(v8::Isolate* isolate, v8::Local<v8::Context> ctx, bool safe_ints) {
+	return RowBuilder(isolate, ctx, handle, safe_ints, &extras->column_keys);
 }
 #endif
 
 v8::Local<v8::Value> Statement::GetRowJS(v8::Isolate* isolate, v8::Local<v8::Context> ctx, bool safe_ints, char mode) {
 #if defined(NODE_MODULE_VERSION) && NODE_MODULE_VERSION >= 127
 	if (mode == Data::FLAT) {
-		return NewRowBuilder(isolate, safe_ints).GetRowJS();
+		return NewRowBuilder(isolate, ctx, safe_ints).GetRowJS();
 	}
 #endif
 	return Data::GetRowJS(isolate, ctx, handle, safe_ints, mode);
@@ -221,7 +221,7 @@ NODE_METHOD(Statement::JS_all) {
 	rows.reserve(8);
 
 	if (mode == Data::FLAT) {
-		RowBuilder rowBuilder = stmt->NewRowBuilder(isolate, safe_ints);
+		RowBuilder rowBuilder = stmt->NewRowBuilder(isolate, ctx, safe_ints);
 		while (sqlite3_step(handle) == SQLITE_ROW) {
 			rows.emplace_back(rowBuilder.GetRowJS());
 		}
@@ -300,7 +300,7 @@ NODE_METHOD(Statement::JS_explainQueryPlan) {
 	rows.reserve(8);
 
 	if (mode == Data::FLAT) {
-		RowBuilder rowBuilder = stmt->NewRowBuilder(isolate, safe_ints);
+		RowBuilder rowBuilder = stmt->NewRowBuilder(isolate, ctx, safe_ints);
 		while (sqlite3_step(handle) == SQLITE_ROW) {
 			rows.emplace_back(rowBuilder.GetRowJS());
 		}

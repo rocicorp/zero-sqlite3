@@ -108,7 +108,7 @@ describe('Statement#get()', function () {
 	});
 	it('should use the new column names after the schema changes', function () {
 		const stmt = this.db.prepare('SELECT * FROM entries ORDER BY rowid');
-		// Several calls, so later ones reuse the cached column names.
+		// Several calls, so rows are also built from the cached template.
 		const get = () => {
 			const rows = Array.from({ length: 100 }, () => stmt.get());
 			for (const row of rows) expect(row).to.deep.equal(rows[0]);
@@ -119,5 +119,37 @@ describe('Statement#get()', function () {
 		expect(get()).to.deep.equal({ z: 'foo', b: 1, c: 3.14, d: Buffer.alloc(4).fill(0xdd), e: null });
 		this.db.prepare('ALTER TABLE entries ADD COLUMN f INTEGER').run();
 		expect(get()).to.deep.equal({ z: 'foo', b: 1, c: 3.14, d: Buffer.alloc(4).fill(0xdd), e: null, f: null });
+	});
+	it('should build rows like plain objects for unusual column names', function () {
+		// Several calls, so rows are also built from the cached template.
+		const row = (sql) => {
+			const stmt = this.db.prepare(sql);
+			const results = Array.from({ length: 100 }, () => {
+				const result = stmt.get();
+				expect(Object.getPrototypeOf(result)).to.equal(Object.prototype);
+				return [Object.getOwnPropertyNames(result), Object.values(result)];
+			});
+			for (const result of results) expect(result).to.deep.equal(results[0]);
+			return results[0];
+		};
+		expect(row('SELECT 1 AS a, 2 AS b, 3 AS a')).to.deep.equal([['a', 'b'], [3, 2]]);
+		expect(row('SELECT 1 AS "1", 2 AS b, 3 AS "0"')).to.deep.equal([['0', '1', 'b'], [3, 1, 2]]);
+		expect(row('SELECT 1 AS "__proto__", 2 AS b')).to.deep.equal([['__proto__', 'b'], [1, 2]]);
+		expect(row('SELECT 1 AS "é", 2 AS "😀", 3 AS "", 4 AS "constructor"')).to.deep.equal([['é', '😀', '', 'constructor'], [1, 2, 3, 4]]);
+		expect(row('SELECT 1 AS "a""b", 2 AS "c\\d", 3 AS "e\nf"')).to.deep.equal([['a"b', 'c\\d', 'e\nf'], [1, 2, 3]]);
+		expect(row('SELECT 1 AS "4294967295", 2 AS "-1", 3 AS "01", 4 AS "1.5", 5 AS length')).to.deep.equal([['4294967295', '-1', '01', '1.5', 'length'], [1, 2, 3, 4, 5]]);
+	});
+	it('should build rows with many columns', function () {
+		for (const width of [127, 128, 300]) {
+			const names = Array.from({ length: width }, (_, i) => `c${i}`);
+			const stmt = this.db.prepare(`SELECT ${names.map((name, i) => `${i} AS ${name}`).join(', ')}`);
+			const expected = Object.fromEntries(names.map((name, i) => [name, i]));
+			// Several calls, so rows are also built from the cached template.
+			for (let i = 0; i < 100; ++i) {
+				const result = stmt.get();
+				expect(Object.keys(result)).to.deep.equal(names);
+				expect(result).to.deep.equal(expected);
+			}
+		}
 	});
 });
