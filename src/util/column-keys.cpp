@@ -65,8 +65,12 @@ private:
 
 	// v8::DictionaryTemplate reads names as Latin-1, so non-ASCII UTF-8 names
 	// would be garbled, and it crashes on duplicate names and on names that are
-	// array indices. Rows with such names are built with v8::Object::New().
+	// array indices. With kMaxTemplateNames or more names its instances start
+	// from a dictionary map, which V8 doesn't support there (it DCHECKs), and
+	// they would be dictionary-mode objects anyway. Rows with such names are
+	// built with v8::Object::New().
 	static bool CanUseTemplate(const std::vector<std::string>& names) {
+		if (names.size() >= kMaxTemplateNames) return false;
 		std::set<std::string_view> seen;
 		for (const std::string& name : names) {
 			for (const char c : name) {
@@ -88,6 +92,10 @@ private:
 		}
 		return value <= 4294967294u;
 	}
+
+	// V8's JSObject::kMapCacheSize: object literals with this many properties
+	// get a dictionary map.
+	static constexpr size_t kMaxTemplateNames = 128;
 
 	std::vector<v8::Global<v8::Name>> keys;
 	// The names to create the template from; empty once it is created, or if

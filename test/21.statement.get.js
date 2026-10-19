@@ -139,4 +139,17 @@ describe('Statement#get()', function () {
 		expect(row('SELECT 1 AS "a""b", 2 AS "c\\d", 3 AS "e\nf"')).to.deep.equal([['a"b', 'c\\d', 'e\nf'], [1, 2, 3]]);
 		expect(row('SELECT 1 AS "4294967295", 2 AS "-1", 3 AS "01", 4 AS "1.5", 5 AS length')).to.deep.equal([['4294967295', '-1', '01', '1.5', 'length'], [1, 2, 3, 4, 5]]);
 	});
+	it('should build rows with many columns', function () {
+		for (const width of [127, 128, 300]) {
+			const names = Array.from({ length: width }, (_, i) => `c${i}`);
+			const stmt = this.db.prepare(`SELECT ${names.map((name, i) => `${i} AS ${name}`).join(', ')}`);
+			const expected = Object.fromEntries(names.map((name, i) => [name, i]));
+			// Several calls, so rows are also built from the cached template.
+			for (let i = 0; i < 100; ++i) {
+				const result = stmt.get();
+				expect(Object.keys(result)).to.deep.equal(names);
+				expect(result).to.deep.equal(expected);
+			}
+		}
+	});
 });
