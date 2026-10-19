@@ -13,6 +13,7 @@ private:
 	explicit StatementIterator(Statement* stmt, bool bound);
 
 	void Next(NODE_ARGUMENTS info);
+	void NextBatch(NODE_ARGUMENTS info, int max_rows);
 	void Return(NODE_ARGUMENTS info);
 	void Throw();
 	void Cleanup();
@@ -36,15 +37,18 @@ private:
 
 	static NODE_METHOD(JS_new);
 	static NODE_METHOD(JS_next);
+	static NODE_METHOD(JS_nextBatch);
+	static NODE_METHOD(JS_restart);
 	static NODE_METHOD(JS_return);
 	static NODE_METHOD(JS_symbolIterator);
 
 	Statement* const stmt;
 	sqlite3_stmt* const handle;
 	Database::State* const db_state;
-	const bool bound;
-	const bool safe_ints;
-	const char mode;
+	// Not const: restart() takes them from the statement again.
+	bool bound;
+	bool safe_ints;
+	char mode;
 	bool alive;
 	bool logged;
 };

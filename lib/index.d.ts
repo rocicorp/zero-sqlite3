@@ -27,7 +27,7 @@ declare namespace BetterSqlite3 {
         run(...params: BindParameters): Database.RunResult;
         get(...params: BindParameters): Result | undefined;
         all(...params: BindParameters): Result[];
-        iterate(...params: BindParameters): IterableIterator<Result>;
+        iterate(...params: BindParameters): StatementIterator<Result>;
         pluck(toggleState?: boolean): this;
         expand(toggleState?: boolean): this;
         raw(toggleState?: boolean): this;
@@ -45,6 +45,20 @@ declare namespace BetterSqlite3 {
         scanStatusV2(idx: number, opcode: ScanStatOpcode, resetFlag: number): number | string | undefined;
         scanStatusReset(): this;
         explainQueryPlan(...params: BindParameters | []): Result[];
+    }
+
+    interface StatementIterator<Result = unknown> extends IterableIterator<Result> {
+        /**
+         * Steps up to `maxRows` rows in one call. In raw mode, returns one flat
+         * array of rowCount * columnCount values; otherwise, an array of rows.
+         * A batch with fewer than `maxRows` rows is the last one.
+         */
+        nextBatch(maxRows: number): unknown[];
+        /**
+         * Runs the statement again with new bind parameters, reusing this
+         * iterator, which must be finished. Cheaper than calling iterate() again.
+         */
+        restart(...params: unknown[]): this;
     }
 
     interface ColumnDefinition {
@@ -176,6 +190,7 @@ declare namespace Database {
         unknown[] ? BetterSqlite3.Statement<BindParameters, Result>
         : BetterSqlite3.Statement<[BindParameters], Result>;
     type ColumnDefinition = BetterSqlite3.ColumnDefinition;
+    type StatementIterator<Result = unknown> = BetterSqlite3.StatementIterator<Result>;
     type Transaction<T extends VariableArgFunction = VariableArgFunction> = BetterSqlite3.Transaction<T>;
     type Database = BetterSqlite3.Database;
 }
