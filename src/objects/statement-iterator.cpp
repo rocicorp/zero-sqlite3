@@ -64,7 +64,11 @@ void StatementIterator::NextBatch(NODE_ARGUMENTS info, int max_rows) {
 	}
 	UseIsolate;
 	UseContext;
+#if defined(NODE_MODULE_VERSION) && NODE_MODULE_VERSION >= 127
 	v8::LocalVector<v8::Value> values(isolate);
+#else
+	std::vector<v8::Local<v8::Value>> values;
+#endif
 	const int columns = mode == Data::RAW ? sqlite3_column_count(handle) : 0;
 	int rows = 0;
 	int status = SQLITE_ROW;
