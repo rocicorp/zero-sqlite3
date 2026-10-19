@@ -127,7 +127,7 @@ describe('Statement#all()', function () {
 		).to.throw(RangeError);
 	});
 	it('should use the new column names after the schema changes', function () {
-		// Enough rows that the change also shows up past the first ones.
+		// Many rows, so rows are also built from the cached template.
 		this.db.prepare('INSERT INTO entries (a, b) SELECT a, b + 10 FROM entries').run();
 		this.db.prepare('INSERT INTO entries (a, b) SELECT a, b + 20 FROM entries').run();
 		this.db.prepare('INSERT INTO entries (a, b) SELECT a, b + 40 FROM entries').run();

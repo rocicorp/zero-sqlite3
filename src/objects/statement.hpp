@@ -16,8 +16,8 @@ public:
 
 #if defined(NODE_MODULE_VERSION) && NODE_MODULE_VERSION >= 127
 	// Returns a builder of object rows that reuses the Statement's cached
-	// column names.
-	RowBuilder NewRowBuilder(v8::Isolate* isolate, bool safe_ints);
+	// column names and template.
+	RowBuilder NewRowBuilder(v8::Isolate* isolate, v8::Local<v8::Context> ctx, bool safe_ints);
 #endif
 
 	// Converts the current row to JavaScript, reusing the cached column names
