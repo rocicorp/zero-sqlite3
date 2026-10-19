@@ -48,6 +48,41 @@ void StatementIterator::Next(NODE_ARGUMENTS info) {
 	}
 }
 
+// Steps up to max_rows rows in one call. In raw mode the result is one flat
+// array of rowCount * columnCount values; in other modes, an array of rows.
+// A batch with fewer than max_rows rows is the last one.
+void StatementIterator::NextBatch(NODE_ARGUMENTS info, int max_rows) {
+	assert(alive == true);
+	db_state->busy = true;
+	if (!logged) {
+		logged = true;
+		if (stmt->db->Log(OnlyIsolate, handle)) {
+			db_state->busy = false;
+			Throw();
+			return;
+		}
+	}
+	UseIsolate;
+	UseContext;
+	v8::LocalVector<v8::Value> values(isolate);
+	const int columns = mode == Data::RAW ? sqlite3_column_count(handle) : 0;
+	int rows = 0;
+	int status = SQLITE_ROW;
+	while (rows < max_rows && (status = sqlite3_step(handle)) == SQLITE_ROW) {
+		if (mode == Data::RAW) {
+			for (int i = 0; i < columns; ++i) values.emplace_back(Data::GetValueJS(isolate, handle, i, safe_ints));
+		} else {
+			values.emplace_back(Data::GetRowJS(isolate, ctx, handle, safe_ints, mode));
+		}
+		++rows;
+	}
+	db_state->busy = false;
+	v8::Local<v8::Array> batch = v8::Array::New(isolate, values.data(), values.size());
+	if (status == SQLITE_ROW) info.GetReturnValue().Set(batch);
+	else if (status == SQLITE_DONE) { Cleanup(); STATEMENT_RETURN_LOGIC(batch); }
+	else Throw();
+}
+
 void StatementIterator::Return(NODE_ARGUMENTS info) {
 	Cleanup();
 	STATEMENT_RETURN_LOGIC(DoneRecord(OnlyIsolate, db_state->addon));
@@ -70,6 +105,7 @@ void StatementIterator::Cleanup() {
 INIT(StatementIterator::Init) {
 	v8::Local<v8::FunctionTemplate> t = NewConstructorTemplate(isolate, data, JS_new, "StatementIterator");
 	SetPrototypeMethod(isolate, data, t, "next", JS_next);
+	SetPrototypeMethod(isolate, data, t, "nextBatch", JS_nextBatch);
 	SetPrototypeMethod(isolate, data, t, "return", JS_return);
 	SetPrototypeSymbolMethod(isolate, data, t, v8::Symbol::GetIterator(isolate), JS_symbolIterator);
 	return t->GetFunction(OnlyContext).ToLocalChecked();
@@ -99,6 +135,15 @@ NODE_METHOD(StatementIterator::JS_next) {
 	REQUIRE_DATABASE_NOT_BUSY(iter->db_state);
 	if (iter->alive) iter->Next(info);
 	else info.GetReturnValue().Set(DoneRecord(OnlyIsolate, iter->db_state->addon));
+}
+
+NODE_METHOD(StatementIterator::JS_nextBatch) {
+	StatementIterator* iter = Unwrap<StatementIterator>(info.This());
+	REQUIRE_DATABASE_NOT_BUSY(iter->db_state);
+	REQUIRE_ARGUMENT_INT32(first, int max_rows);
+	if (max_rows < 1) return ThrowRangeError("Expected first argument to be a positive integer");
+	if (iter->alive) iter->NextBatch(info, max_rows);
+	else info.GetReturnValue().Set(v8::Array::New(OnlyIsolate, 0));
 }
 
 NODE_METHOD(StatementIterator::JS_return) {

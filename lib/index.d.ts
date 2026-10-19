@@ -27,7 +27,7 @@ declare namespace BetterSqlite3 {
         run(...params: BindParameters): Database.RunResult;
         get(...params: BindParameters): Result | undefined;
         all(...params: BindParameters): Result[];
-        iterate(...params: BindParameters): IterableIterator<Result>;
+        iterate(...params: BindParameters): StatementIterator<Result>;
         pluck(toggleState?: boolean): this;
         expand(toggleState?: boolean): this;
         raw(toggleState?: boolean): this;
@@ -45,6 +45,15 @@ declare namespace BetterSqlite3 {
         scanStatusV2(idx: number, opcode: ScanStatOpcode, resetFlag: number): number | string | undefined;
         scanStatusReset(): this;
         explainQueryPlan(...params: BindParameters | []): Result[];
+    }
+
+    interface StatementIterator<Result = unknown> extends IterableIterator<Result> {
+        /**
+         * Steps up to `maxRows` rows in one call. In raw mode, returns one flat
+         * array of rowCount * columnCount values; otherwise, an array of rows.
+         * A batch with fewer than `maxRows` rows is the last one.
+         */
+        nextBatch(maxRows: number): unknown[];
     }
 
     interface ColumnDefinition {

@@ -513,6 +513,25 @@ for (const cat of stmt.iterate()) {
 }
 ```
 
+#### iterator.nextBatch(*maxRows*) -> *array*
+
+Steps up to `maxRows` rows in one call, instead of one call per row as `next()` does. In [raw mode](#rawtogglestate---this), it returns one flat array of `rowCount * columnCount` values, in row order. In any other mode, it returns an array of rows, as [`.all()`](#allbindparameters---array-of-rows) would.
+
+A batch with fewer than `maxRows` rows is the last one: the iterator is then finished, exactly as when `next()` returns `done`. `nextBatch()` and `next()` can be mixed, and `return()` closes the iterator early.
+
+```js
+const stmt = db.prepare('SELECT id, name FROM cats').raw();
+const it = stmt.iterate();
+try {
+  for (let batch; (batch = it.nextBatch(64)).length > 0; ) {
+    for (let i = 0; i < batch.length; i += 2) console.log(batch[i], batch[i + 1]);
+    if (batch.length < 64 * 2) break;
+  }
+} finally {
+  it.return();
+}
+```
+
 ### .pluck([toggleState]) -> *this*
 
 **(only on statements that return data)*
