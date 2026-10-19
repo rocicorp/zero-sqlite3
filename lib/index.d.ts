@@ -185,6 +185,7 @@ declare namespace Database {
         unknown[] ? BetterSqlite3.Statement<BindParameters, Result>
         : BetterSqlite3.Statement<[BindParameters], Result>;
     type ColumnDefinition = BetterSqlite3.ColumnDefinition;
+    type StatementIterator<Result = unknown> = BetterSqlite3.StatementIterator<Result>;
     type Transaction<T extends VariableArgFunction = VariableArgFunction> = BetterSqlite3.Transaction<T>;
     type Database = BetterSqlite3.Database;
 }
