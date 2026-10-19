@@ -106,4 +106,18 @@ describe('Statement#get()', function () {
 			this.db.prepare(SQL2).get({})
 		).to.throw(RangeError);
 	});
+	it('should use the new column names after the schema changes', function () {
+		const stmt = this.db.prepare('SELECT * FROM entries ORDER BY rowid');
+		// Several calls, so later ones reuse the cached column names.
+		const get = () => {
+			const rows = Array.from({ length: 100 }, () => stmt.get());
+			for (const row of rows) expect(row).to.deep.equal(rows[0]);
+			return rows[0];
+		};
+		expect(get()).to.deep.equal({ a: 'foo', b: 1, c: 3.14, d: Buffer.alloc(4).fill(0xdd), e: null });
+		this.db.prepare('ALTER TABLE entries RENAME COLUMN a TO z').run();
+		expect(get()).to.deep.equal({ z: 'foo', b: 1, c: 3.14, d: Buffer.alloc(4).fill(0xdd), e: null });
+		this.db.prepare('ALTER TABLE entries ADD COLUMN f INTEGER').run();
+		expect(get()).to.deep.equal({ z: 'foo', b: 1, c: 3.14, d: Buffer.alloc(4).fill(0xdd), e: null, f: null });
+	});
 });

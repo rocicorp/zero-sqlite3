@@ -4,24 +4,20 @@ public:
 	explicit RowBuilder(
 		v8::Isolate* isolate,
 		sqlite3_stmt* handle,
-		bool safe_ints
+		bool safe_ints,
+		ColumnKeys* column_keys
 	) :
 		isolate(isolate),
 		handle(handle),
 		column_count(-1),
 		safe_ints(safe_ints),
+		column_keys(column_keys),
 		keys(isolate) {}
 
 	v8::Local<v8::Value> GetRowJS() {
 		if (column_count < 0) {
-			column_count = sqlite3_column_count(handle);
-			keys.reserve(column_count);
-			for (int i = 0; i < column_count; ++i) {
-				keys.emplace_back(
-					InternalizedFromUtf8(isolate, sqlite3_column_name(handle, i), -1)
-						.As<v8::Name>()
-				);
-			}
+			column_keys->Get(isolate, handle, keys);
+			column_count = static_cast<int>(keys.size());
 		}
 
 		v8::LocalVector<v8::Value> values(isolate);
@@ -45,5 +41,6 @@ private:
 	sqlite3_stmt* handle;
 	int column_count;
 	const bool safe_ints;
+	ColumnKeys* const column_keys;
 	v8::LocalVector<v8::Name> keys;
 };

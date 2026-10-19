@@ -52,6 +52,21 @@ BindMap* Statement::GetBindMap(v8::Isolate* isolate) {
 Statement::Extras::Extras(sqlite3_uint64 id)
 	: bind_map(0), id(id) {}
 
+#if defined(NODE_MODULE_VERSION) && NODE_MODULE_VERSION >= 127
+RowBuilder Statement::NewRowBuilder(v8::Isolate* isolate, bool safe_ints) {
+	return RowBuilder(isolate, handle, safe_ints, &extras->column_keys);
+}
+#endif
+
+v8::Local<v8::Value> Statement::GetRowJS(v8::Isolate* isolate, v8::Local<v8::Context> ctx, bool safe_ints, char mode) {
+#if defined(NODE_MODULE_VERSION) && NODE_MODULE_VERSION >= 127
+	if (mode == Data::FLAT) {
+		return NewRowBuilder(isolate, safe_ints).GetRowJS();
+	}
+#endif
+	return Data::GetRowJS(isolate, ctx, handle, safe_ints, mode);
+}
+
 INIT(Statement::Init) {
 	v8::Local<v8::FunctionTemplate> t = NewConstructorTemplate(isolate, data, JS_new, "Statement");
 	SetPrototypeMethod(isolate, data, t, "run", JS_run);
@@ -169,7 +184,7 @@ NODE_METHOD(Statement::JS_get) {
 	STATEMENT_START(REQUIRE_STATEMENT_RETURNS_DATA, DOES_NOT_MUTATE);
 	int status = sqlite3_step(handle);
 	if (status == SQLITE_ROW) {
-		v8::Local<v8::Value> result = Data::GetRowJS(isolate, OnlyContext, handle, stmt->safe_ints, stmt->mode);
+		v8::Local<v8::Value> result = stmt->GetRowJS(isolate, OnlyContext, stmt->safe_ints, stmt->mode);
 		sqlite3_reset(handle);
 		STATEMENT_RETURN(result);
 	} else if (status == SQLITE_DONE) {
@@ -206,7 +221,7 @@ NODE_METHOD(Statement::JS_all) {
 	rows.reserve(8);
 
 	if (mode == Data::FLAT) {
-		RowBuilder rowBuilder(isolate, handle, safe_ints);
+		RowBuilder rowBuilder = stmt->NewRowBuilder(isolate, safe_ints);
 		while (sqlite3_step(handle) == SQLITE_ROW) {
 			rows.emplace_back(rowBuilder.GetRowJS());
 		}
@@ -285,7 +300,7 @@ NODE_METHOD(Statement::JS_explainQueryPlan) {
 	rows.reserve(8);
 
 	if (mode == Data::FLAT) {
-		RowBuilder rowBuilder(isolate, handle, safe_ints);
+		RowBuilder rowBuilder = stmt->NewRowBuilder(isolate, safe_ints);
 		while (sqlite3_step(handle) == SQLITE_ROW) {
 			rows.emplace_back(rowBuilder.GetRowJS());
 		}

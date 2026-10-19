@@ -40,7 +40,7 @@ void StatementIterator::Next(NODE_ARGUMENTS info) {
 		UseIsolate;
 		UseContext;
 		info.GetReturnValue().Set(
-			NewRecord(isolate, ctx, Data::GetRowJS(isolate, ctx, handle, safe_ints, mode), db_state->addon, false)
+			NewRecord(isolate, ctx, stmt->GetRowJS(isolate, ctx, safe_ints, mode), db_state->addon, false)
 		);
 	} else {
 		if (status == SQLITE_DONE) Return(info);
