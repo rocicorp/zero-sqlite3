@@ -106,6 +106,7 @@ INIT(StatementIterator::Init) {
 	v8::Local<v8::FunctionTemplate> t = NewConstructorTemplate(isolate, data, JS_new, "StatementIterator");
 	SetPrototypeMethod(isolate, data, t, "next", JS_next);
 	SetPrototypeMethod(isolate, data, t, "nextBatch", JS_nextBatch);
+	SetPrototypeMethod(isolate, data, t, "restart", JS_restart);
 	SetPrototypeMethod(isolate, data, t, "return", JS_return);
 	SetPrototypeSymbolMethod(isolate, data, t, v8::Symbol::GetIterator(isolate), JS_symbolIterator);
 	return t->GetFunction(OnlyContext).ToLocalChecked();
@@ -144,6 +145,32 @@ NODE_METHOD(StatementIterator::JS_nextBatch) {
 	if (max_rows < 1) return ThrowRangeError("Expected first argument to be a positive integer");
 	if (iter->alive) iter->NextBatch(info, max_rows);
 	else info.GetReturnValue().Set(v8::Array::New(OnlyIsolate, 0));
+}
+
+// Runs the statement again, with new bind parameters, reusing this finished
+// iterator instead of creating a new one with iterate().
+NODE_METHOD(StatementIterator::JS_restart) {
+	StatementIterator* iter = Unwrap<StatementIterator>(info.This());
+	if (iter->alive) return ThrowTypeError("The iterator must be finished before it is restarted");
+	Statement* stmt = iter->stmt;
+	sqlite3_stmt* handle = stmt->handle;
+	Database* db = stmt->db;
+	REQUIRE_DATABASE_OPEN(db->GetState());
+	REQUIRE_DATABASE_NOT_BUSY(db->GetState());
+	DOES_ADD_ITERATOR();
+	if (!stmt->bound) {
+		STATEMENT_BIND(handle);
+	} else if (info.Length() > 0) {
+		return ThrowTypeError("This statement already has bound parameters");
+	}
+	iter->bound = stmt->bound;
+	iter->safe_ints = stmt->safe_ints;
+	iter->mode = stmt->mode;
+	iter->alive = true;
+	iter->logged = !iter->db_state->has_logger;
+	stmt->locked = true;
+	iter->db_state->iterators += 1;
+	info.GetReturnValue().Set(info.This());
 }
 
 NODE_METHOD(StatementIterator::JS_return) {

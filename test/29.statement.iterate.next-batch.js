@@ -120,4 +120,60 @@ describe('StatementIterator#nextBatch()', function () {
 		expect(logged).to.deep.equal([stmt.source, stmt.source]);
 		db.close();
 	});
+
+	describe('restart()', function () {
+		it('should run the statement again with new bind parameters', function () {
+			const stmt = this.db.prepare('SELECT b FROM entries WHERE b > ? ORDER BY rowid').raw();
+			const it = stmt.iterate(7);
+			expect(it.nextBatch(10)).to.deep.equal([8, 9, 10]);
+			expect(it.restart(8)).to.equal(it);
+			expect(stmt.busy).to.be.true;
+			expect(it.nextBatch(10)).to.deep.equal([9, 10]);
+			expect(it.restart(1).nextBatch(2)).to.deep.equal([2, 3]);
+			it.return();
+			expect(it.restart(5).nextBatch(10)).to.deep.equal([6, 7, 8, 9, 10]);
+			expect(stmt.busy).to.be.false;
+		});
+		it('should only restart a finished iterator', function () {
+			const stmt = this.db.prepare('SELECT b FROM entries ORDER BY rowid').raw();
+			const it = stmt.iterate();
+			it.nextBatch(2);
+			expect(() => it.restart()).to.throw(TypeError);
+			expect(it.nextBatch(2)).to.deep.equal([3, 4]);
+			it.return();
+			const other = stmt.iterate();
+			expect(() => it.restart()).to.throw(TypeError);
+			other.return();
+			expect(it.restart().nextBatch(1)).to.deep.equal([1]);
+			it.return();
+		});
+		it('should leave the iterator finished on bad bind parameters', function () {
+			const stmt = this.db.prepare('SELECT b FROM entries WHERE b > ?').raw();
+			const it = stmt.iterate(9);
+			expect(it.nextBatch(5)).to.deep.equal([10]);
+			expect(() => it.restart()).to.throw(RangeError);
+			expect(() => it.restart(1, 2)).to.throw(RangeError);
+			expect(stmt.busy).to.be.false;
+			expect(it.nextBatch(5)).to.deep.equal([]);
+			expect(stmt.all(9)).to.deep.equal([[10]]);
+		});
+		it('should use the statement\'s current modes', function () {
+			const stmt = this.db.prepare('SELECT a, b FROM entries ORDER BY rowid LIMIT 1');
+			const it = stmt.iterate();
+			expect(it.nextBatch(5)).to.deep.equal([{a: 'foo', b: 1}]);
+			stmt.raw().safeIntegers();
+			expect(it.restart().nextBatch(5)).to.deep.equal(['foo', 1n]);
+		});
+		it('should log the statement once per run in verbose mode', function () {
+			const logged = [];
+			const db = new Database(util.next(), {verbose: sql => logged.push(sql)});
+			const stmt = db.prepare('SELECT 1 UNION ALL SELECT 2').raw();
+			logged.length = 0;
+			const it = stmt.iterate();
+			it.nextBatch(5);
+			it.restart().nextBatch(5);
+			expect(logged).to.deep.equal([stmt.source, stmt.source]);
+			db.close();
+		});
+	});
 });

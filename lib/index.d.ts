@@ -54,6 +54,11 @@ declare namespace BetterSqlite3 {
          * A batch with fewer than `maxRows` rows is the last one.
          */
         nextBatch(maxRows: number): unknown[];
+        /**
+         * Runs the statement again with new bind parameters, reusing this
+         * iterator, which must be finished. Cheaper than calling iterate() again.
+         */
+        restart(...params: unknown[]): this;
     }
 
     interface ColumnDefinition {
