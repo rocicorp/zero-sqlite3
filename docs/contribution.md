@@ -137,11 +137,11 @@ People love `better-sqlite3` because of its robustness and reliability. Each and
 
 Trusted contributors have the privileges necessary to create a release. Here are the steps to create a release:
 
-1. Run [this workflow](https://github.com/WiseLibs/better-sqlite3/actions/workflows/bump-version.yml) from the `master` branch to create a new version tag
-	- Select `patch` for bug fixes and general maintenance
-	- Select `minor` for larger releases with new features
-	- Select `major` for releases with backwards-incompatible changes
-2. [Draft a new release](https://github.com/WiseLibs/better-sqlite3/releases/new), and select the version tag that you just created
+1. Open a pull request that bumps `version` in `package.json` (e.g. `npm version patch --no-git-tag-version`), and merge it through the merge queue
+	- Bump `patch` for bug fixes and general maintenance
+	- Bump `minor` for larger releases with new features
+	- Bump `major` for releases with backwards-incompatible changes
+2. [Draft a new release](https://github.com/rocicorp/zero-sqlite3/releases/new) with a new tag `v<version>` on the merged commit
 3. Leave the "Release title" blank, and click "Auto-generate release notes"
 4. Click "Publish release"
-5. Wait for the `build` job to complete ([here](https://github.com/WiseLibs/better-sqlite3/actions))
+5. Wait for the `build` job to complete ([here](https://github.com/rocicorp/zero-sqlite3/actions/workflows/build.yml))
