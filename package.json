@@ -21,8 +21,7 @@
     "shell.js"
   ],
   "engines": {
-    "node": "22.x || 24.x",
-    "bun": ">=1.1.0"
+    "node": "22.x || 24.x"
   },
   "types": "lib/index.d.ts",
   "dependencies": {

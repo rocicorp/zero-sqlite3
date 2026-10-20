@@ -38,16 +38,6 @@ If you still have issues, try these steps:
 1. Delete your `$HOME/.node-gyp` directory
 1. Run `npm install`
 
-## Bun
-
-If you're using Bun and encounter issues:
-
-1. Ensure you're using Bun 1.1.0 or later
-2. Try rebuilding: `bun run build-release`
-3. Check that prebuilt binaries are available for your platform
-
-Note: Bun uses the same native module system as Node.js, so most Node.js troubleshooting steps apply.
-
 ## Still stuck?
 
 Browse [previous installation issues](https://github.com/WiseLibs/better-sqlite3/issues?q=is%3Aissue).
