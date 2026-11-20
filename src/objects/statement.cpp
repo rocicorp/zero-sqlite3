@@ -111,6 +111,8 @@ NODE_METHOD(Statement::JS_new) {
 	sqlite3_stmt* handle;
 	const char* tail;
 
+	// Preparation can invoke user callbacks. The constructor has consumed its arguments.
+	addon->privileged_info = NULL;
 	if (sqlite3_prepare_v3(db->GetHandle(), *utf8, utf8.length() + 1, flags, &handle, &tail) != SQLITE_OK) {
 		return db->ThrowDatabaseError();
 	}

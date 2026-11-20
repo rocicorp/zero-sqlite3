@@ -79,6 +79,11 @@ private:
 	static NODE_METHOD(JS_close);
 	static NODE_METHOD(JS_defaultSafeIntegers);
 	static NODE_METHOD(JS_unsafeMode);
+	static NODE_METHOD(JS_progressHandler);
+	static int OnProgress(void* context);
+	// Field 0 belongs to node::ObjectWrap. Keep the callback on its JS owner so
+	// a callback that captures the connection can be garbage collected with it.
+	static constexpr int PROGRESS_HANDLER_FIELD = 1;
 	static NODE_METHOD(JS_persistWal);
 	static NODE_GETTER(JS_open);
 	static NODE_GETTER(JS_inTransaction);
@@ -98,6 +103,7 @@ private:
 	const bool has_logger;
 	unsigned short iterators;
 	Addon* const addon;
+	bool preparing = false;
 	const v8::Global<v8::Value> logger;
 	std::set<Statement*, CompareStatement> stmts;
 	std::set<Backup*, CompareBackup> backups;

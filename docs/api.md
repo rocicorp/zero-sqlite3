@@ -19,6 +19,7 @@
 - [Database#loadExtension()](#loadextensionpath-entrypoint---this)
 - [Database#exec()](#execstring---this)
 - [Database#close()](#close---this)
+- [Database#progressHandler()](#progresshandlerinterval-callback---this)
 - [Database#persistWal()](#persistwaltogglestate---this)
 - [Properties](#properties)
 
@@ -394,6 +395,27 @@ process.on('SIGHUP', () => process.exit(128 + 1));
 process.on('SIGINT', () => process.exit(128 + 2));
 process.on('SIGTERM', () => process.exit(128 + 15));
 ```
+
+### .progressHandler([*interval*, *callback*]) -> *this*
+
+Registers a synchronous callback on this connection. SQLite calls it approximately every `interval` virtual machine instructions during SQL execution, including scans that have yet to return a row. SQLite can also call it while preparing a complex statement. The interval must be a positive 32-bit signed integer.
+
+Return `true` to interrupt the operation with a `SqliteError` whose `code` is `SQLITE_INTERRUPT`. Return `false` or `undefined` to continue. Throwing from the callback aborts the operation and propagates the original exception. Keep the callback short and avoid modifying the connection or running SQL on it. Interrupting a write inside an explicit transaction can cause SQLite to roll back the transaction.
+
+Each call replaces the connection's previous handler. Call `db.progressHandler()` to clear it. This example checks a deadline even when the query produces no rows.
+
+```js
+const deadline = performance.now() + 2000;
+db.progressHandler(10000, () => performance.now() >= deadline);
+try {
+  const rows = db.prepare('SELECT id FROM events WHERE archived = 1').all();
+  console.log(rows.length);
+} finally {
+  db.progressHandler();
+}
+```
+
+See [SQLite's progress callback documentation](https://sqlite.org/c3ref/progress_handler.html).
 
 ### .persistWal([*toggleState*]) -> *this*
 
