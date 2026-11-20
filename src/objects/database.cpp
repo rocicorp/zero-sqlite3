@@ -42,6 +42,7 @@ Database::~Database() {
 void Database::CloseHandles() {
 	if (open) {
 		open = false;
+		sqlite3_progress_handler(db_handle, 0, NULL, NULL);
 		for (Statement* stmt : stmts) stmt->CloseHandles();
 		for (Backup* backup : backups) backup->CloseHandles();
 		stmts.clear();
@@ -125,6 +126,7 @@ void Database::FreeSerialization(char* data, void* _) {
 
 INIT(Database::Init) {
 	v8::Local<v8::FunctionTemplate> t = NewConstructorTemplate(isolate, data, JS_new, "Database");
+	t->InstanceTemplate()->SetInternalFieldCount(PROGRESS_HANDLER_FIELD + 1);
 	SetPrototypeMethod(isolate, data, t, "prepare", JS_prepare);
 	SetPrototypeMethod(isolate, data, t, "exec", JS_exec);
 	SetPrototypeMethod(isolate, data, t, "backup", JS_backup);
@@ -136,6 +138,7 @@ INIT(Database::Init) {
 	SetPrototypeMethod(isolate, data, t, "close", JS_close);
 	SetPrototypeMethod(isolate, data, t, "defaultSafeIntegers", JS_defaultSafeIntegers);
 	SetPrototypeMethod(isolate, data, t, "unsafeMode", JS_unsafeMode);
+	SetPrototypeMethod(isolate, data, t, "progressHandler", JS_progressHandler);
 	SetPrototypeMethod(isolate, data, t, "persistWal", JS_persistWal);
 	SetPrototypeGetter(isolate, data, t, "open", JS_open);
 	SetPrototypeGetter(isolate, data, t, "inTransaction", JS_inTransaction);
@@ -203,10 +206,14 @@ NODE_METHOD(Database::JS_prepare) {
 	(void)pragmaMode;
 	UseAddon;
 	UseIsolate;
+	Database* db = Unwrap<Database>(info.This());
+	const bool was_preparing = db->preparing;
+	db->preparing = true;
 	v8::Local<v8::Function> c = addon->Statement.Get(isolate);
 	addon->privileged_info = &info;
 	v8::MaybeLocal<v8::Object> maybeStatement = c->NewInstance(OnlyContext, 0, NULL);
 	addon->privileged_info = NULL;
+	db->preparing = was_preparing;
 	if (!maybeStatement.IsEmpty()) info.GetReturnValue().Set(maybeStatement.ToLocalChecked());
 }
 
@@ -392,6 +399,7 @@ NODE_METHOD(Database::JS_close) {
 		REQUIRE_DATABASE_NO_ITERATORS(db);
 		db->addon->dbs.erase(db);
 		db->CloseHandles();
+		info.This()->SetInternalField(PROGRESS_HANDLER_FIELD, v8::Undefined(OnlyIsolate));
 	}
 }
 
@@ -406,6 +414,48 @@ NODE_METHOD(Database::JS_unsafeMode) {
 	if (info.Length() == 0) db->unsafe_mode = true;
 	else { REQUIRE_ARGUMENT_BOOLEAN(first, db->unsafe_mode); }
 	sqlite3_db_config(db->db_handle, SQLITE_DBCONFIG_DEFENSIVE, static_cast<int>(!db->unsafe_mode), NULL);
+}
+
+NODE_METHOD(Database::JS_progressHandler) {
+	Database* db = Unwrap<Database>(info.This());
+	REQUIRE_DATABASE_OPEN(db);
+	REQUIRE_DATABASE_NOT_BUSY(db);
+	if (info.Length() == 0) {
+		sqlite3_progress_handler(db->db_handle, 0, NULL, NULL);
+		info.This()->SetInternalField(PROGRESS_HANDLER_FIELD, v8::Undefined(OnlyIsolate));
+		return;
+	}
+	if (info.Length() != 2) return ThrowTypeError("Expected an instruction interval and a progress callback");
+	REQUIRE_ARGUMENT_INT32(first, int interval);
+	REQUIRE_ARGUMENT_FUNCTION(second, v8::Local<v8::Function> fn);
+	if (interval <= 0) return ThrowRangeError("Expected a positive instruction interval");
+	info.This()->SetInternalField(PROGRESS_HANDLER_FIELD, fn);
+	sqlite3_progress_handler(db->db_handle, interval, OnProgress, db);
+}
+
+int Database::OnProgress(void* context) {
+	Database* db = static_cast<Database*>(context);
+	// Only invoke JS during SQL preparation and execution. SQLite may also
+	// run internal statements in other APIs, such as sqlite3_serialize().
+	if (!db->busy && !db->preparing) return 0;
+	if (db->was_js_error) return 1;
+	EasyIsolate;
+	v8::HandleScope scope(isolate);
+	v8::Local<v8::Function> fn = db->handle(isolate)->GetInternalField(PROGRESS_HANDLER_FIELD).As<v8::Function>();
+	v8::Local<v8::Value> result;
+	const bool was_busy = db->busy;
+	db->busy = true;
+	bool returned = fn->Call(OnlyContext, v8::Undefined(isolate), 0, NULL).ToLocal(&result);
+	db->busy = was_busy;
+	if (!returned) {
+		db->was_js_error = true;
+		return 1;
+	}
+	if (result->IsTrue()) return 1;
+	if (result->IsFalse() || result->IsUndefined()) return 0;
+	ThrowTypeError("Expected the progress callback to return a boolean or undefined");
+	db->was_js_error = true;
+	return 1;
 }
 
 NODE_METHOD(Database::JS_persistWal) {

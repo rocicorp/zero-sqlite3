@@ -116,6 +116,8 @@ declare namespace BetterSqlite3 {
         backup(destinationFile: string, options?: Database.BackupOptions): Promise<Database.BackupMetadata>;
         table(name: string, options: VirtualTableOptions): this;
         unsafeMode(unsafe?: boolean): this;
+        progressHandler(interval: number, callback: () => boolean | void): this;
+        progressHandler(): this;
         persistWal(persist?: boolean): this;
         serialize(options?: Database.SerializeOptions): Buffer;
     }
